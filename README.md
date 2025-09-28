@@ -81,3 +81,39 @@ The `APIService` supports SSE streaming with `streaming: true` to accumulate tok
 ---
 
 _Replace `<YOUR_USERNAME>` above with your GitHub username._
+
+## Swift Package (WhipCore)
+
+This repo now includes a pure Swift Package for the core tip-splitting engine and models.
+
+- Manifest: `Package.swift`
+- Library target: `WhipCore` (in `Sources/WhipCore`)
+- Tests: `Tests/WhipCoreTests`
+
+Use it in another project by adding this repo as a dependency, then:
+
+```swift
+import WhipCore
+```
+
+### Build and test (SwiftPM)
+
+```powershell
+# Requires Swift toolchain
+swift build
+swift test -c debug
+```
+
+### Build and run (Xcode)
+
+Open `WhipTip.xcodeproj` and run the `WhipTip` target. The project relies on a generated Info.plist (no checked-in Info.plist). The API key is injected via `Configs/Secrets.xcconfig` or the build script.
+
+## Cleanup notes
+
+- Expo/React Native remnants under `WHIPTIP-main/` are no longer used and are ignored via `.gitignore`. You can delete that folder locally if you don't need it.
+- The app has been consolidated into `WhipTip/WhipTipApp.swift`. Legacy files under `WhipTip/`, `Models/`, `Utilities/`, and `Services/` are retained only for reference and are not compiled by the Xcode target. They can be safely removed if you prefer a lean tree.
+
+## Info.plist
+
+The Xcode target sets `GENERATE_INFOPLIST_FILE = YES` and injects `DEEPSEEK_API_KEY` at build time. There's no committed Info.plist; `WhipTip/AppInfo.template.plist` is an unused placeholder and can be removed.
+

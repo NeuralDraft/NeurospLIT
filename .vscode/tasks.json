@@ -18,6 +18,18 @@
 				"$gcc"
 			],
 			"group": "build"
+		},
+		{
+			"label": "SwiftPM: build & test WhipCore",
+			"type": "shell",
+			"command": "swift",
+			"args": [
+				"test"
+			],
+			"problemMatcher": [
+				"$swiftc"
+			],
+			"group": "build"
 		}
 	]
 }

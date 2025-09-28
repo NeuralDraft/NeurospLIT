@@ -7,6 +7,7 @@ import Combine
 import Network
 import UIKit
 import StoreKit  // Added for StoreKit 2
+import WhipCore
 
 // CLEANED: Logic from Utilities/Color+Hex.swift now merged into monolith.
 extension Color {
@@ -146,28 +147,51 @@ struct TipTemplate: Identifiable, Codable {
 
 struct SplitResult { var splits: [Participant]; var warnings: [String] }
 
-private let weightNormalizationEpsilon = 0.001
+// MARK: - Mapping to WhipCore types
+private extension TipRules.RuleType {
+    var asCore: WhipCore.TipRules.RuleType {
+        switch self {
+        case .hoursBased: return .hoursBased
+        case .percentage: return .percentage
+        case .equal: return .equal
+        case .roleWeighted: return .roleWeighted
+        case .hybrid: return .hybrid
+        }
+    }
+}
 
-// MARK: Fairness-Aware Tip Split Engine (inlined from former core module)
-fileprivate enum _RoundingContext { case offTop, equal(TipRules.RuleType), percentage, hours, roleWeighted, hybrid }
+private extension OffTheTopRule { func asCore() -> WhipCore.OffTheTopRule { .init(role: role, percentage: percentage) } }
+private extension Participant { func asCore() -> WhipCore.Participant { .init(id: id, name: name, role: role, hours: hours, weight: weight, calculatedAmount: calculatedAmount, actualAmount: actualAmount) } }
+private extension DisplayConfig { func asCore() -> WhipCore.DisplayConfig { .init(primaryVisualization: primaryVisualization, accentColor: accentColor, showPercentages: showPercentages, showComparison: showComparison) } }
+private extension TipRules {
+    func asCore() -> WhipCore.TipRules {
+        .init(type: type.asCore, formula: formula, offTheTop: offTheTop?.map { $0.asCore() }, roleWeights: roleWeights, customLogic: customLogic)
+    }
+}
+private extension TipTemplate {
+    func asCore() -> WhipCore.TipTemplate {
+        .init(id: id, name: name, createdDate: createdDate, rules: rules.asCore(), participants: participants.map { $0.asCore() }, displayConfig: displayConfig.asCore())
+    }
+}
 
+// MARK: Engine delegation to WhipCore
 func computeSplits(template: TipTemplate, pool: Double) -> SplitResult {
-    var warnings: [String] = []
-    var participants = template.participants
-    guard pool >= 0 else { return SplitResult(splits: participants, warnings: ["Pool cannot be negative"]) }
-    guard !participants.isEmpty else { return SplitResult(splits: [], warnings: ["No participants"]) }
-    let poolCents = Int(round(pool * 100))
-
-    let (offTopAlloc, remainderAfterOffTop, offTopWarnings) = _allocateOffTheTop(participants: participants, poolCents: poolCents, rules: template.rules.offTheTop)
-    warnings.append(contentsOf: offTopWarnings)
-    let (mainAlloc, mainWarnings) = _allocateByRule(participants: participants, remainderCents: remainderAfterOffTop, rules: template.rules)
-    warnings.append(contentsOf: mainWarnings)
-    let final = _combineAndFixPennies(offTop: offTopAlloc, main: mainAlloc, targetTotal: poolCents, participants: participants)
-    for i in participants.indices { participants[i].calculatedAmount = Double(final[participants[i].id] ?? 0)/100.0 }
-    return SplitResult(splits: participants, warnings: warnings)
+    // Convert app types to WhipCore types, call WhipCore engine, then map back
+    let coreTemplate = template.asCore()
+    let (coreSplits, warnings) = WhipCore.computeSplits(template: coreTemplate, pool: pool)
+    // Map results back into app participants, preserving calculatedAmount
+    var mapped = template.participants
+    // Build a map from core id -> calculatedAmount
+    let amounts: [UUID: Double] = Dictionary(uniqueKeysWithValues: coreSplits.map { ($0.id, $0.calculatedAmount ?? 0) })
+    for i in mapped.indices {
+        mapped[i].calculatedAmount = amounts[mapped[i].id]
+    }
+    return SplitResult(splits: mapped, warnings: warnings)
 }
 
 // MARK: Allocation helpers (all amounts in cents)
+// Disable legacy in-file engine implementation (now using WhipCore)
+#if false
 fileprivate func _allocateOffTheTop(participants: [Participant], poolCents: Int, rules: [OffTheTopRule]?) -> (perID: [UUID:Int], remainder: Int, warnings: [String]) {
     guard let rules = rules, !rules.isEmpty else { return ([:], poolCents, []) }
     var warnings: [String] = []
@@ -371,6 +395,7 @@ fileprivate func _orderForPennyDistribution(ids:[UUID], remainders:[UUID:Double]
         return tie(pa,pb)
     }
 }
+#endif
 
 // MARK: - Minimal Helpers Reintroduced (previously from core)
 // CLEANED: Logic from Utilities/TemplateUtilities.swift now merged into monolith.

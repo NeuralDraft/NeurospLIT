@@ -1,37 +1,48 @@
-# Xcode / Swift
+### Xcode / Swift ###
 DerivedData/
 build/
 xcuserdata/
 *.xcuserstate
+*.xccheckout
+*.moved-aside
+*.xcuserdatad
+*.xcworkspace/xcshareddata/WorkspaceSettings.xcsettings
 
-# SwiftPM
+### SwiftPM ###
 .build/
+Package.resolved
 
-# CocoaPods / Carthage / etc (not used but future-proof)
+### CocoaPods / Carthage (not used but future-proof) ###
 Pods/
 Carthage/
 
-# User settings
+### User settings ###
 .DS_Store
+.swiftpm/xcode/*
 
-# Fastlane
+### Fastlane ###
 fastlane/report.xml
 fastlane/Preview.html
 fastlane/screenshots/**/*.png
 fastlane/test_output
 
-# Archives
+### Archives ###
 *.xcarchive
 
-# Generated
+### Generated Artifacts ###
 /*.ipa
 /*.dSYM.zip
 /*.dSYM
 
-# Secrets
+### Secrets ###
 Secrets.plist
 *.private.xcconfig
-
-
-# Local secrets (do not commit)
 Configs/Secrets.xcconfig
+
+### Node/Expo remnants ###
+WHIPTIP-main/
+**/node_modules/
+**/.expo/
+**/package-lock.json
+**/yarn.lock
+**/pnpm-lock.yaml
