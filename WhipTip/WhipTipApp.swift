@@ -8,6 +8,8 @@ import Network
 import UIKit
 import StoreKit  // Added for StoreKit 2
 import PDFKit    // Added for PDF generation
+import AVFoundation // For audio recording
+import Speech       // For speech recognition
 // Monolithic build: core engine is inlined; no external WhipCore import
 
 // Reusable keyboard "Done" toolbar for numeric fields
@@ -1801,6 +1803,12 @@ struct OnboardingFlowView: View {
     @State private var showError = false
     @State private var errorMessage = ""
     @State private var showRawJSON = false
+    // Speech Recognition state
+    @State private var speechRecognizer = SFSpeechRecognizer()
+    @State private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
+    @State private var recognitionTask: SFSpeechRecognitionTask?
+    @State private var audioEngine = AVAudioEngine()
+    @State private var speechAuthorized = false
     
     
     var body: some View {
@@ -2106,7 +2114,8 @@ struct OnboardingFlowView: View {
                         .fill(onboardingVM.isRecording ? Color.red : Color.purple)
                 )
         }
-        .disabled(true) // Voice input not implemented
+        .onAppear { requestSpeechAuthorization() }
+        .disabled(isProcessing)
     }
     
     private var textInput: some View {
@@ -2132,7 +2141,98 @@ struct OnboardingFlowView: View {
     }
     
     private func startVoiceInput() {
-        onboardingVM.toggleRecording()
+        if onboardingVM.isRecording {
+            stopVoiceInput()
+            return
+        }
+        // Start: ensure permissions then begin recording
+        requestPermissions { granted in
+            if granted {
+                do {
+                    try startRecording()
+                    onboardingVM.isRecording = true
+                } catch {
+                    presentError("Could not start recording. Please try again.\n\n\(error.localizedDescription)")
+                }
+            } else {
+                presentError("Microphone and Speech permissions are required to use voice input.")
+            }
+        }
+    }
+
+    private func stopVoiceInput() {
+        audioEngine.stop()
+        audioEngine.inputNode.removeTap(onBus: 0)
+        recognitionRequest?.endAudio()
+        recognitionTask?.cancel()
+        recognitionTask = nil
+        recognitionRequest = nil
+        onboardingVM.isRecording = false
+    }
+
+    private func presentError(_ message: String) {
+        errorMessage = message
+        showError = true
+    }
+
+    private func requestSpeechAuthorization() {
+        SFSpeechRecognizer.requestAuthorization { status in
+            DispatchQueue.main.async {
+                self.speechAuthorized = (status == .authorized)
+            }
+        }
+    }
+
+    private func requestPermissions(completion: @escaping (Bool) -> Void) {
+        // Request speech auth first
+        SFSpeechRecognizer.requestAuthorization { speechStatus in
+            // Then request mic permission
+            AVAudioSession.sharedInstance().requestRecordPermission { micGranted in
+                DispatchQueue.main.async {
+                    completion(speechStatus == .authorized && micGranted)
+                }
+            }
+        }
+    }
+
+    private func startRecording() throws {
+        // Cancel previous task if running
+        recognitionTask?.cancel(); recognitionTask = nil
+
+        let audioSession = AVAudioSession.sharedInstance()
+        try audioSession.setCategory(.record, mode: .measurement, options: [.duckOthers])
+        try audioSession.setActive(true, options: .notifyOthersOnDeactivation)
+
+        recognitionRequest = SFSpeechAudioBufferRecognitionRequest()
+        guard let recognitionRequest else { throw NSError(domain: "NeurospLIT.Speech", code: -10, userInfo: [NSLocalizedDescriptionKey: "Failed to create recognition request"]) }
+        recognitionRequest.shouldReportPartialResults = true
+
+        guard let recognizer = speechRecognizer, recognizer.isAvailable else {
+            throw NSError(domain: "NeurospLIT.Speech", code: -11, userInfo: [NSLocalizedDescriptionKey: "Speech recognizer is not available for your locale."])
+        }
+
+        let inputNode = audioEngine.inputNode
+        recognitionTask = recognizer.recognitionTask(with: recognitionRequest) { result, error in
+            if let result = result {
+                // Update user input live
+                self.userInput = result.bestTranscription.formattedString
+                if result.isFinal {
+                    self.stopVoiceInput()
+                }
+            }
+            if let error = error {
+                self.stopVoiceInput()
+                self.presentError("Speech recognition error: \(error.localizedDescription)")
+            }
+        }
+
+        let recordingFormat = inputNode.outputFormat(forBus: 0)
+        inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { buffer, _ in
+            self.recognitionRequest?.append(buffer)
+        }
+
+        audioEngine.prepare()
+        try audioEngine.start()
     }
     
     private func submitInput() {
