@@ -178,15 +178,16 @@ private extension TipTemplate {
 func computeSplits(template: TipTemplate, pool: Double) -> SplitResult {
     // Convert app types to WhipCore types, call WhipCore engine, then map back
     let coreTemplate = template.asCore()
-    let (coreSplits, warnings) = WhipCore.computeSplits(template: coreTemplate, pool: pool)
-    // Map results back into app participants, preserving calculatedAmount
-    var mapped = template.participants
-    // Build a map from core id -> calculatedAmount
-    let amounts: [UUID: Double] = Dictionary(uniqueKeysWithValues: coreSplits.map { ($0.id, $0.calculatedAmount ?? 0) })
-    for i in mapped.indices {
-        mapped[i].calculatedAmount = amounts[mapped[i].id]
+    do {
+        let (coreSplits, warnings) = try WhipCore.computeSplits(template: coreTemplate, pool: pool)
+        var mapped = template.participants
+        let amounts: [UUID: Double] = Dictionary(uniqueKeysWithValues: coreSplits.map { ($0.id, $0.calculatedAmount ?? 0) })
+        for i in mapped.indices { mapped[i].calculatedAmount = amounts[mapped[i].id] }
+        return SplitResult(splits: mapped, warnings: warnings)
+    } catch {
+        // Surface validation errors as warnings in-app and return original participants
+        return SplitResult(splits: template.participants, warnings: [error.localizedDescription])
     }
-    return SplitResult(splits: mapped, warnings: warnings)
 }
 
 // MARK: Allocation helpers (all amounts in cents)

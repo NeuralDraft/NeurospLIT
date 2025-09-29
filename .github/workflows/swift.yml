@@ -15,6 +15,16 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Install SwiftLint (macOS only)
+        if: startsWith(matrix.os, 'macos')
+        run: |
+          brew update
+          brew install swiftlint
+      - name: Lint
+        if: startsWith(matrix.os, 'macos')
+        run: |
+          swiftlint --version
+          swiftlint --strict
       - name: Set up Swift
         uses: swift-actions/setup-swift@v1
         with:

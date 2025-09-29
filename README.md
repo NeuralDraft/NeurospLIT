@@ -86,9 +86,6 @@ _Replace `<YOUR_USERNAME>` above with your GitHub username._
 
 This repo now includes a pure Swift Package for the core tip-splitting engine and models.
 
-- Manifest: `Package.swift`
-- Library target: `WhipCore` (in `Sources/WhipCore`)
-- Tests: `Tests/WhipCoreTests`
 
 Use it in another project by adding this repo as a dependency, then:
 
@@ -102,6 +99,30 @@ import WhipCore
 # Requires Swift toolchain
 swift build
 swift test -c debug
+
+## Edge Cases & Validation
+
+The core engine (`WhipCore.computeSplits`) validates inputs and throws `WhipCoreError` for invalid cases. The app layer catches these and surfaces them as warnings without crashing.
+
+- Supported inputs:
+   - Non-negative pool amounts (Double), up to very large values (tested to $1,000,000,000.99)
+   - Any number of participants with optional `hours` and `weight` (both must be non-negative if provided)
+   - Rule types: equal, hours-based, percentage, role-weighted, hybrid (`formula` like `server:60, support:40`)
+   - Off-the-top rules with per-role percentages (>= 0)
+
+- Invalid inputs (cause thrown errors):
+   - Negative pool → `WhipCoreError.negativePool`
+   - Empty participant list → `WhipCoreError.noParticipants`
+   - Negative hours on a participant → `WhipCoreError.negativeHours(name)`
+   - Negative weight on a participant → `WhipCoreError.negativeWeight(name)`
+   - Negative off-the-top percentage → `WhipCoreError.invalidOffTheTopPercentage(role, pct)`
+   - Negative role weight → `WhipCoreError.invalidRoleWeight(role, weight)`
+
+- Rounding and determinism:
+   - All allocations are computed in cents and normalized to the exact pool total with deterministic penny distribution.
+   - Tie-breaking is stable by remainder, then by rule-specific criteria, then by name/id to ensure repeatability.
+
+See `Tests/WhipCoreTests/EngineTests.swift` for comprehensive coverage, including zero pool, hybrid with missing roles, and very large pool stress.
 ```
 
 ### Build and run (Xcode)

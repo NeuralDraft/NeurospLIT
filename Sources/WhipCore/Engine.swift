@@ -2,11 +2,24 @@ import Foundation
 
 private let weightNormalizationEpsilon = 0.001
 
-public func computeSplits(template: TipTemplate, pool: Double) -> (splits: [Participant], warnings: [String]) {
+public func computeSplits(template: TipTemplate, pool: Double) throws -> (splits: [Participant], warnings: [String]) {
     var warnings: [String] = []
     var participants = template.participants
-    guard pool >= 0 else { return (participants, ["Pool cannot be negative"]) }
-    guard !participants.isEmpty else { return ([], ["No participants to split"]) }
+    // Validation
+    if pool < 0 { throw WhipCoreError.negativePool }
+    if participants.isEmpty { throw WhipCoreError.noParticipants }
+    for p in participants {
+        if let h = p.hours, h < 0 { throw WhipCoreError.negativeHours(participantName: p.name) }
+        if let w = p.weight, w < 0 { throw WhipCoreError.negativeWeight(participantName: p.name) }
+    }
+    if let ott = template.rules.offTheTop {
+        for r in ott where r.percentage < 0 {
+            throw WhipCoreError.invalidOffTheTopPercentage(role: r.role, percentage: r.percentage)
+        }
+    }
+    if let rw = template.rules.roleWeights {
+        for (role, w) in rw where w < 0 { throw WhipCoreError.invalidRoleWeight(role: role, weight: w) }
+    }
     let poolCents = Int(round(pool * 100))
     let (offTopPerID, remainderAfterOffTop, offTopWarnings) = allocateOffTheTop(participants: participants, poolCents: poolCents, rules: template.rules.offTheTop)
     warnings.append(contentsOf: offTopWarnings)
