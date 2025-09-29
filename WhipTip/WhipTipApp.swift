@@ -1158,9 +1158,9 @@ class APIService: ObservableObject {
     /// DEBUG-only: Prints the source of the current DeepSeek key, masking the value (first 4 chars + …).
     private func debugLogActiveKeySource() {
         let override = (UserDefaults.standard.string(forKey: overrideUDKey) ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-        let plist = bundleAPIKey.trimmingCharacters(in: .whitespacecsAndNewlines)
-        let key = effectiveAPIKey.trimmingCharacters(in: .whitespacesAndNewlines)
-        let masked = key.isEmpty ? "(none)" : String(key.preficx(4)) + "…"
+    let plist = bundleAPIKey.trimmingCharacters(in: .whitespacesAndNewlines)
+    let key = effectiveAPIKey.trimmingCharacters(in: .whitespacesAndNewlines)
+    let masked = key.isEmpty ? "(none)" : String(key.prefix(4)) + "…"
         if !override.isEmpty {
             print("[WhipTip] Using DeepSeek key from UserDefaults override: \(masked)")
         } else if !plist.isEmpty {
@@ -1173,8 +1173,8 @@ class APIService: ObservableObject {
     
     // Internal DTOs
     struct ChatMessageDTO: Codable { let role: String; let content: String }
-    struct ChatRequestDTO: Codable { let model: String; let messages: [ChatMessageDTO]; leccccccccccccccccccccccccccccccccccccccccccccccccccccc stream: Bool }
-    struct ChatChoiceDTO: Codable { struct Message: Codable { let role: String; let contenccccccccccccccccccccccccccccccccccccccccccccccccccccc: String }; let message: Message }
+    struct ChatRequestDTO: Codable { let model: String; let messages: [ChatMessageDTO]; let stream: Bool }
+    struct ChatChoiceDTO: Codable { struct Message: Codable { let role: String; let content: String }; let message: Message }
     struct ChatResponseDTO: Codable { let choices: [ChatChoiceDTO] }
  
     enum StreamPiece { case token(String); case done }
