@@ -7,7 +7,7 @@ import Combine
 import Network
 import UIKit
 import StoreKit  // Added for StoreKit 2
-import WhipCore
+// Monolithic build: core engine is inlined; no external WhipCore import
 
 // CLEANED: Logic from Utilities/Color+Hex.swift now merged into monolith.
 extension Color {
@@ -147,47 +147,70 @@ struct TipTemplate: Identifiable, Codable {
 
 struct SplitResult { var splits: [Participant]; var warnings: [String] }
 
-// MARK: - Mapping to WhipCore types
-private extension TipRules.RuleType {
-    var asCore: WhipCore.TipRules.RuleType {
+// MARK: - Core Errors (inlined)
+enum WhipCoreError: Error, LocalizedError, Equatable {
+    case negativePool
+    case noParticipants
+    case negativeHours(participantName: String)
+    case negativeWeight(participantName: String)
+    case invalidOffTheTopPercentage(role: String, percentage: Double)
+    case invalidRoleWeight(role: String, weight: Double)
+
+    var errorDescription: String? {
         switch self {
-        case .hoursBased: return .hoursBased
-        case .percentage: return .percentage
-        case .equal: return .equal
-        case .roleWeighted: return .roleWeighted
-        case .hybrid: return .hybrid
+        case .negativePool:
+            return "Pool cannot be negative."
+        case .noParticipants:
+            return "No participants to split."
+        case .negativeHours(let name):
+            return "Negative hours for participant: \(name)."
+        case .negativeWeight(let name):
+            return "Negative weight for participant: \(name)."
+        case .invalidOffTheTopPercentage(let role, let pct):
+            return "Invalid off-the-top percentage \(pct) for role: \(role)."
+        case .invalidRoleWeight(let role, let w):
+            return "Invalid role weight \(w) for role: \(role)."
         }
     }
 }
 
-private extension OffTheTopRule { func asCore() -> WhipCore.OffTheTopRule { .init(role: role, percentage: percentage) } }
-private extension Participant { func asCore() -> WhipCore.Participant { .init(id: id, name: name, role: role, hours: hours, weight: weight, calculatedAmount: calculatedAmount, actualAmount: actualAmount) } }
-private extension DisplayConfig { func asCore() -> WhipCore.DisplayConfig { .init(primaryVisualization: primaryVisualization, accentColor: accentColor, showPercentages: showPercentages, showComparison: showComparison) } }
-private extension TipRules {
-    func asCore() -> WhipCore.TipRules {
-        .init(type: type.asCore, formula: formula, offTheTop: offTheTop?.map { $0.asCore() }, roleWeights: roleWeights, customLogic: customLogic)
-    }
-}
-private extension TipTemplate {
-    func asCore() -> WhipCore.TipTemplate {
-        .init(id: id, name: name, createdDate: createdDate, rules: rules.asCore(), participants: participants.map { $0.asCore() }, displayConfig: displayConfig.asCore())
+// MARK: - Core Engine (inlined)
+private let weightNormalizationEpsilon = 0.001
+
+func computeSplits(template: TipTemplate, pool: Double) -> SplitResult {
+    do {
+        let (splits, warnings) = try _computeSplitsInternal(template: template, pool: pool)
+        return SplitResult(splits: splits, warnings: warnings)
+    } catch {
+        return SplitResult(splits: template.participants, warnings: [error.localizedDescription])
     }
 }
 
-// MARK: Engine delegation to WhipCore
-func computeSplits(template: TipTemplate, pool: Double) -> SplitResult {
-    // Convert app types to WhipCore types, call WhipCore engine, then map back
-    let coreTemplate = template.asCore()
-    do {
-        let (coreSplits, warnings) = try WhipCore.computeSplits(template: coreTemplate, pool: pool)
-        var mapped = template.participants
-        let amounts: [UUID: Double] = Dictionary(uniqueKeysWithValues: coreSplits.map { ($0.id, $0.calculatedAmount ?? 0) })
-        for i in mapped.indices { mapped[i].calculatedAmount = amounts[mapped[i].id] }
-        return SplitResult(splits: mapped, warnings: warnings)
-    } catch {
-        // Surface validation errors as warnings in-app and return original participants
-        return SplitResult(splits: template.participants, warnings: [error.localizedDescription])
+private func _computeSplitsInternal(template: TipTemplate, pool: Double) throws -> (splits: [Participant], warnings: [String]) {
+    var warnings: [String] = []
+    var participants = template.participants
+    if pool < 0 { throw WhipCoreError.negativePool }
+    if participants.isEmpty { throw WhipCoreError.noParticipants }
+    for p in participants {
+        if let h = p.hours, h < 0 { throw WhipCoreError.negativeHours(participantName: p.name) }
+        if let w = p.weight, w < 0 { throw WhipCoreError.negativeWeight(participantName: p.name) }
     }
+    if let ott = template.rules.offTheTop {
+        for r in ott where r.percentage < 0 {
+            throw WhipCoreError.invalidOffTheTopPercentage(role: r.role, percentage: r.percentage)
+        }
+    }
+    if let rw = template.rules.roleWeights {
+        for (role, w) in rw where w < 0 { throw WhipCoreError.invalidRoleWeight(role: role, weight: w) }
+    }
+    let poolCents = Int(round(pool * 100))
+    let (offTopPerID, remainderAfterOffTop, offTopWarnings) = _allocateOffTheTop(participants: participants, poolCents: poolCents, rules: template.rules.offTheTop)
+    warnings.append(contentsOf: offTopWarnings)
+    let (mainPerID, mainWarnings) = _allocateByRule(participants: participants, remainderCents: remainderAfterOffTop, rules: template.rules)
+    warnings.append(contentsOf: mainWarnings)
+    let combined = _combineAndFixPennies(offTop: offTopPerID, main: mainPerID, targetTotal: poolCents, participants: participants)
+    for i in participants.indices { participants[i].calculatedAmount = Double(combined[participants[i].id] ?? 0) / 100.0 }
+    return (participants, warnings)
 }
 
 // MARK: Allocation helpers (all amounts in cents)
