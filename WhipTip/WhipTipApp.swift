@@ -664,109 +664,7 @@ final class HoursStore {
     }
 }
 
-// CLEANED: WhipCoins module - Manager + result types
-@MainActor final class WhipCoinsManager: ObservableObject { // CLEANED
-    @Published var whipCoins: Int = 0 // CLEANED
-    private let storageKey = "whipCoinsBalance" // CLEANED
-
-    init() { // CLEANED
-        if let savedBalance = UserDefaults.standard.value(forKey: storageKey) as? Int { // CLEANED
-            whipCoins = savedBalance // CLEANED
-        } // CLEANED
-    } // CLEANED
-
-    func consumeWhipCoins(_ amount: Int) -> Bool { // CLEANED
-        guard whipCoins >= amount else { return false } // CLEANED
-        whipCoins -= amount // CLEANED
-        saveBalance() // CLEANED
-        return true // CLEANED
-    } // CLEANED
-
-    func addWhipCoins(_ amount: Int) { // CLEANED
-        whipCoins += amount // CLEANED
-        saveBalance() // CLEANED
-    } // CLEANED
-
-    private func saveBalance() { // CLEANED
-        UserDefaults.standard.set(whipCoins, forKey: storageKey) // CLEANED
-    } // CLEANED
-} // CLEANED
-
-struct CreditsResult { // CLEANED
-    var whipCoins: Int // CLEANED
-    var breakdown: [CreditsBreakdownItem] // CLEANED
-    var policyVersion: String // CLEANED
-    var seed: String // CLEANED
-} // CLEANED
-
-struct CreditsBreakdownItem { // CLEANED
-    var label: String // CLEANED
-    var deltaWhipCoins: Int // CLEANED
-} // CLEANED
-
-struct PricingMeta { // CLEANED
-    var instructionText: String? // CLEANED
-    var seed: String? // CLEANED
-} // CLEANED
-
-enum PricingPolicy { // CLEANED
-    static func calculateWhipCoins(template: TipTemplate, meta: PricingMeta? = nil) -> CreditsResult { // CLEANED
-        var total = 200 // CLEANED
-        var breakdown: [CreditsBreakdownItem] = [ // CLEANED
-            CreditsBreakdownItem(label: "Base", deltaWhipCoins: 200) // CLEANED
-        ] // CLEANED
-
-        let roleCount = template.participants.count // CLEANED
-        if (2...3).contains(roleCount) { // CLEANED
-            total += 50 // CLEANED
-            breakdown.append(CreditsBreakdownItem(label: "Roles 2–3", deltaWhipCoins: 50)) // CLEANED
-        } else if (4...6).contains(roleCount) { // CLEANED
-            total += 100 // CLEANED
-            breakdown.append(CreditsBreakdownItem(label: "Roles 4–6", deltaWhipCoins: 100)) // CLEANED
-        } else if roleCount >= 7 { // CLEANED
-            total += 150 // CLEANED
-            breakdown.append(CreditsBreakdownItem(label: "Roles 7+", deltaWhipCoins: 150)) // CLEANED
-        } // CLEANED
-
-        if template.rules.offTheTop?.isEmpty == false { // CLEANED
-            total += 75 // CLEANED
-            breakdown.append(CreditsBreakdownItem(label: "Off-the-top bonuses", deltaWhipCoins: 75)) // CLEANED
-        } // CLEANED
-
-        if template.rules.type == .hoursBased { // CLEANED
-            total += 50 // CLEANED
-            breakdown.append(CreditsBreakdownItem(label: "Hours-based modifiers", deltaWhipCoins: 50)) // CLEANED
-        } // CLEANED
-
-        let hasPercent = (template.rules.roleWeights?.isEmpty == false) || template.participants.contains { $0.weight != nil } // CLEANED
-        let hasPerPerson = template.participants.contains { $0.hours != nil } // CLEANED
-        if hasPercent && hasPerPerson { // CLEANED
-            total += 80 // CLEANED
-            breakdown.append(CreditsBreakdownItem(label: "Hybrid rules", deltaWhipCoins: 80)) // CLEANED
-        } // CLEANED
-
-        if let custom = template.rules.customLogic, !custom.isEmpty { // CLEANED
-            total += 100 // CLEANED
-            breakdown.append(CreditsBreakdownItem(label: "Nested logic", deltaWhipCoins: 100)) // CLEANED
-        } // CLEANED
-
-        let instructionSource = meta?.instructionText ?? template.rules.customLogic ?? template.rules.formula // CLEANED
-        let tokenCount = instructionSource.split(whereSeparator: { $0.isWhitespace }).count // CLEANED
-        if tokenCount > 300 { // CLEANED
-            total += 40 // CLEANED
-            breakdown.append(CreditsBreakdownItem(label: "Long instructions", deltaWhipCoins: 40)) // CLEANED
-        } // CLEANED
-
-        total = max(200, min(2000, total)) // CLEANED
-
-        return CreditsResult( // CLEANED
-            whipCoins: total, // CLEANED
-            breakdown: breakdown, // CLEANED
-            policyVersion: "WC-1.0", // CLEANED
-            seed: meta?.seed ?? UUID().uuidString // CLEANED
-        ) // CLEANED
-    } // CLEANED
-} // CLEANED
+// [Removed WhipCoins module: manager, pricing result types, and pricing policy]
 
 // MARK: - StoreKit 2 Subscription Manager (REPLACING MOCK)
 
@@ -1278,7 +1176,7 @@ class APIService: ObservableObject {
     struct ChatRequestDTO: Codable { let model: String; let messages: [ChatMessageDTO]; leccccccccccccccccccccccccccccccccccccccccccccccccccccc stream: Bool }
     struct ChatChoiceDTO: Codable { struct Message: Codable { let role: String; let contenccccccccccccccccccccccccccccccccccccccccccccccccccccc: String }; let message: Message }
     struct ChatResponseDTO: Codable { let choices: [ChatChoiceDTO] }
-
+ 
     enum StreamPiece { case token(String); case done }
 
     /// Unified non-stream request returning full content
@@ -1544,7 +1442,6 @@ struct WhipTipApp: App {
     @StateObject private var subscriptionManager = SubscriptionManager()
     @StateObject private var templateManager = TemplateManager()
     @StateObject private var apiService = APIService()
-    @StateObject private var whipCoinsManager = WhipCoinsManager() // CLEANED
     
     #if DEBUG
     @State private var showDebugInfoAlert: Bool = false
@@ -1580,7 +1477,6 @@ struct WhipTipApp: App {
                 .environment(\.templateManager, templateManager)
                 .environment(\.subscriptionManager, subscriptionManager)
                 .environment(\.apiService, apiService)
-                .environmentObject(whipCoinsManager) // CLEANED
                 .preferredColorScheme(.dark)
                 .task {
                     // Update subscription status on launch
@@ -1604,7 +1500,6 @@ struct WhipTipApp: App {
 // MARK: - Diagnostics Panel
 struct DiagnosticsView: View {
     @Environment(\.apiService) private var api
-    @EnvironmentObject private var whipCoinsManager: WhipCoinsManager // CLEANED
     @Environment(\.subscriptionManager) private var subs
     @State private var keyPrefix: String = ""
     @State private var isConnected: Bool = true
@@ -1615,7 +1510,6 @@ struct DiagnosticsView: View {
                 VStack(alignment: .leading) {
                     Text("API Key Present: \(keyPrefix.isEmpty ? "No" : "Yes (\(keyPrefix)…)")")
                     Text("Subscription Active: \(subs.isSubscribed ? "Yes" : "No")")
-                    Text("WhipCoins Balance: \(whipCoinsManager.whipCoins)") // CLEANED
                     Text("Last API Status: \(api.lastStatusMessage)")
                 }.frame(maxWidth: .infinity, alignment: .leading)
             }
@@ -1648,7 +1542,6 @@ struct RootView: View {
     
     @State private var showOnboarding = false
     @State private var selectedTemplate: TipTemplate?
-    @State private var showWhipCoins = false // CLEANED
     #if DEBUG
     @State private var showDebugDashboard = false
     #endif
@@ -1657,7 +1550,6 @@ struct RootView: View {
         NavigationView {
             contentView
         }
-    .sheet(isPresented: $showWhipCoins) { WhipCoinsView(showWhipCoins: $showWhipCoins) } // CLEANED
         .sheet(isPresented: missingKeyBinding) {
             CredentialsView(isPresented: missingKeyBinding)
         }
@@ -1701,12 +1593,11 @@ struct RootView: View {
         if templateManager.templates.isEmpty && !showOnboarding {
             WelcomeView(showOnboarding: $showOnboarding)
         } else if showOnboarding {
-            OnboardingFlowView(showOnboarding: $showOnboarding, showWhipCoins: $showWhipCoins) // CLEANED
+            OnboardingFlowView(showOnboarding: $showOnboarding)
         } else {
             MainDashboardView(
                 selectedTemplate: $selectedTemplate,
-                showOnboarding: $showOnboarding,
-                showWhipCoins: $showWhipCoins // CLEANED
+                showOnboarding: $showOnboarding
             )
         }
     }
@@ -1814,8 +1705,7 @@ struct WelcomeView: View {
                 .font(.title3)
                 .foregroundColor(.gray)
                 .multilineTextAlignment(.center)
-            Text("Top up WhipCoins anytime to collect new templates when you're ready.") // CLEANED
-                .font(.subheadline).foregroundColor(.secondary).multilineTextAlignment(.center) // CLEANED
+            // Removed WhipCoins mention; keep concise onboarding copy
         }
     }
     
@@ -1875,10 +1765,8 @@ struct FeatureRow: View {
 
 struct OnboardingFlowView: View {
     @Binding var showOnboarding: Bool
-    @Binding var showWhipCoins: Bool // CLEANED
     @Environment(\.apiService) private var apiService
     @Environment(\.templateManager) private var templateManager
-    @EnvironmentObject private var whipCoinsManager: WhipCoinsManager // CLEANED
     
     @StateObject private var onboardingVM = OnboardingViewModel()
     @State private var userInput = ""
@@ -1886,8 +1774,7 @@ struct OnboardingFlowView: View {
     @State private var showError = false
     @State private var errorMessage = ""
     @State private var showRawJSON = false
-    @State private var showPricingReveal = false // CLEANED
-    @State private var currentCreditsResult: CreditsResult? // CLEANED
+    
     
     var body: some View {
         VStack(spacing: 0) {
@@ -1905,21 +1792,7 @@ struct OnboardingFlowView: View {
         } message: {
             Text(errorMessage)
         }
-        .sheet(isPresented: $showPricingReveal) {
-            if let result = currentCreditsResult, let template = onboardingVM.finalTemplate {
-                PricingRevealView(
-                    creditsResult: result,
-                    template: template,
-                    onCollected: { finishOnboarding() },
-                    onNeedWhipCoins: { handleWhipCoinsTopUp() }
-                )
-            }
-        }
-        .onAppear {
-            if whipCoinsManager.whipCoins == 0 {
-                showWhipCoins = true
-            }
-        }
+        
     }
     
     private var progressBar: some View {
@@ -2014,24 +1887,7 @@ struct OnboardingFlowView: View {
         }
     }
 
-    private func presentPricing() { // CLEANED
-        guard let template = onboardingVM.finalTemplate else { return } // CLEANED
-        onboardingVM.confirmTemplate() // CLEANED
-        let meta = PricingMeta( // CLEANED
-            instructionText: onboardingVM.templateSummary, // CLEANED
-            seed: UUID().uuidString // CLEANED
-        ) // CLEANED
-        currentCreditsResult = PricingPolicy.calculateWhipCoins( // CLEANED
-            template: template, // CLEANED
-            meta: meta // CLEANED
-        ) // CLEANED
-        showPricingReveal = true // CLEANED
-    } // CLEANED
-
-    private func handleWhipCoinsTopUp() { // CLEANED
-        showPricingReveal = false // CLEANED
-        showWhipCoins = true // CLEANED
-    } // CLEANED
+    
     
     private func jsonPreview(template: TipTemplate) -> some View {
         ScrollView(.horizontal) {
@@ -2280,13 +2136,11 @@ struct OnboardingFlowView: View {
         }
     }
     
-    private func finishOnboarding() { // CLEANED
-        guard let template = onboardingVM.finalTemplate else { return } // CLEANED
-        templateManager.saveTemplate(template) // CLEANED
-        currentCreditsResult = nil // CLEANED
-        showPricingReveal = false // CLEANED
-        showOnboarding = false // CLEANED
-    } // CLEANED
+    private func finishOnboarding() {
+        guard let template = onboardingVM.finalTemplate else { return }
+        templateManager.saveTemplate(template)
+        showOnboarding = false
+    }
 }
 
 // MARK: - [OnboardingViewModel and other supporting views remain unchanged]
@@ -2471,10 +2325,8 @@ struct ConversationBubble: View {
 struct MainDashboardView: View {
     @Binding var selectedTemplate: TipTemplate?
     @Binding var showOnboarding: Bool
-    @Binding var showWhipCoins: Bool // CLEANED
     
     @Environment(\.templateManager) private var templateManager
-    @EnvironmentObject private var whipCoinsManager: WhipCoinsManager // CLEANED
     
     @State private var showTemplateList = false
     @State private var tipAmount = ""
@@ -2528,16 +2380,7 @@ struct MainDashboardView: View {
                     .font(.title2)
             }
             
-            Button(action: { showWhipCoins = true }) { // CLEANED
-                HStack(spacing: 6) { // CLEANED
-                    Image(systemName: "ticket") // CLEANED
-                    Text("\(whipCoinsManager.whipCoins)") // CLEANED
-                } // CLEANED
-                .font(.headline) // CLEANED
-                .padding(8) // CLEANED
-                .background(Color.white.opacity(0.08)) // CLEANED
-                .cornerRadius(12) // CLEANED
-            } // CLEANED
+            // Removed WhipCoins button
         }
         .padding()
     }
@@ -2620,13 +2463,9 @@ struct MainDashboardView: View {
                         .cornerRadius(12)
                 }
                 
-                Button(action: { // CLEANED
-                    if whipCoinsManager.whipCoins > 0 { // CLEANED
-                        showOnboarding = true // CLEANED
-                    } else { // CLEANED
-                        showWhipCoins = true // CLEANED
-                    } // CLEANED
-                }) { // CLEANED
+                Button(action: {
+                    showOnboarding = true
+                }) {
                     Label("Create New Template", systemImage: "plus.circle")
                         .frame(maxWidth: .infinity)
                         .padding()
@@ -2641,204 +2480,7 @@ struct MainDashboardView: View {
     }
 }
 
-struct WhipCoinsView: View { // CLEANED
-    @EnvironmentObject var whipCoinsManager: WhipCoinsManager // CLEANED
-    @Binding var showWhipCoins: Bool // CLEANED
-
-    @State private var products: [Product] = [] // CLEANED
-    @State private var isLoading = true // CLEANED
-    @State private var errorMessage: String? // CLEANED
-
-    private let productIDs = [ // CLEANED
-        "com.whiptip.starter", // CLEANED
-        "com.whiptip.standard", // CLEANED
-        "com.whiptip.pro" // CLEANED
-    ] // CLEANED
-
-    var body: some View { // CLEANED
-        VStack(spacing: 20) { // CLEANED
-            Text("Top Up Your WhipCoins! ⚡") // CLEANED
-                .font(.largeTitle).bold() // CLEANED
-
-            if isLoading { // CLEANED
-                ProgressView() // CLEANED
-            } else if let error = errorMessage { // CLEANED
-                Text(error).foregroundColor(.red) // CLEANED
-            } else { // CLEANED
-                ForEach(products) { product in // CLEANED
-                    Button(action: { purchase(product) }) { // CLEANED
-                        VStack { // CLEANED
-                            Text(product.displayName) // CLEANED
-                            Text(product.displayPrice) // CLEANED
-                            Text(getCreditsDescription(for: product)) // CLEANED
-                                .font(.subheadline) // CLEANED
-                        } // CLEANED
-                        .frame(maxWidth: .infinity) // CLEANED
-                        .padding() // CLEANED
-                        .background(Color.blue) // CLEANED
-                        .foregroundColor(.white) // CLEANED
-                        .cornerRadius(10) // CLEANED
-                    } // CLEANED
-                } // CLEANED
-            } // CLEANED
-
-            Button("Close") { // CLEANED
-                showWhipCoins = false // CLEANED
-            } // CLEANED
-        } // CLEANED
-        .padding() // CLEANED
-        .onAppear(perform: loadProducts) // CLEANED
-    } // CLEANED
-
-    private func loadProducts() { // CLEANED
-        Task { // CLEANED
-            do { // CLEANED
-                let fetched = try await Product.products(for: productIDs) // CLEANED
-                await MainActor.run { // CLEANED
-                    products = fetched // CLEANED
-                    isLoading = false // CLEANED
-                } // CLEANED
-            } catch { // CLEANED
-                await MainActor.run { // CLEANED
-                    errorMessage = "Failed to load products: \(error.localizedDescription)" // CLEANED
-                    isLoading = false // CLEANED
-                } // CLEANED
-            } // CLEANED
-        } // CLEANED
-    } // CLEANED
-
-    private func purchase(_ product: Product) { // CLEANED
-        Task { // CLEANED
-            do { // CLEANED
-                let result = try await product.purchase() // CLEANED
-                switch result { // CLEANED
-                case .success(let verification): // CLEANED
-                    if case .verified(let transaction) = verification { // CLEANED
-                        let coins = getCreditsAmount(for: product) // CLEANED
-                        await MainActor.run { whipCoinsManager.addWhipCoins(coins) } // CLEANED
-                        await transaction.finish() // CLEANED
-                        await MainActor.run { showWhipCoins = false } // CLEANED
-                    } // CLEANED
-                default: break // CLEANED
-                } // CLEANED
-            } catch { // CLEANED
-                await MainActor.run { // CLEANED
-                    errorMessage = "Purchase failed: \(error.localizedDescription)" // CLEANED
-                } // CLEANED
-            } // CLEANED
-        } // CLEANED
-    } // CLEANED
-
-    private func getCreditsAmount(for product: Product) -> Int { // CLEANED
-        switch product.id { // CLEANED
-        case "com.whiptip.starter": return 500 // CLEANED
-        case "com.whiptip.standard": return 1100 // CLEANED
-        case "com.whiptip.pro": return 2400 // CLEANED
-        default: return 0 // CLEANED
-        } // CLEANED
-    } // CLEANED
-
-    private func getCreditsDescription(for product: Product) -> String { // CLEANED
-        "\(getCreditsAmount(for: product)) WhipCoins" // CLEANED
-    } // CLEANED
-} // CLEANED
-
-struct PricingRevealView: View { // CLEANED
-    let creditsResult: CreditsResult // CLEANED
-    let template: TipTemplate // CLEANED
-    let onCollected: () -> Void // CLEANED
-    let onNeedWhipCoins: () -> Void // CLEANED
-
-    @Environment(\.dismiss) private var dismiss // CLEANED
-    @EnvironmentObject private var whipCoinsManager: WhipCoinsManager // CLEANED
-
-    @State private var revealedItems: [Int] = [] // CLEANED
-    @State private var showFinalPrice = false // CLEANED
-    @State private var currentIndex = 0 // CLEANED
-
-    var body: some View { // CLEANED
-        VStack(spacing: 20) { // CLEANED
-            Text("Analyzing your rules…") // CLEANED
-                .font(.headline) // CLEANED
-                .padding() // CLEANED
-
-            ForEach(creditsResult.breakdown.indices, id: \.self) { index in // CLEANED
-                if revealedItems.contains(index) { // CLEANED
-                    let item = creditsResult.breakdown[index] // CLEANED
-                    let sign = item.deltaWhipCoins > 0 ? "+" : (item.deltaWhipCoins < 0 ? "-" : "") // CLEANED
-                    let absDelta = abs(item.deltaWhipCoins) // CLEANED
-                    Text("\(item.label): \(sign)\(absDelta) WhipCoins") // CLEANED
-                        .font(.body) // CLEANED
-                        .transition(.opacity.combined(with: .slide)) // CLEANED
-                } // CLEANED
-            } // CLEANED
-
-            if showFinalPrice { // CLEANED
-                VStack { // CLEANED
-                    Text("Your fair price is \(creditsResult.whipCoins) WhipCoins") // CLEANED
-                        .font(.largeTitle) // CLEANED
-                        .bold() // CLEANED
-                        .foregroundColor(.green) // CLEANED
-                        .scaleEffect(showFinalPrice ? 1.1 : 0.9) // CLEANED
-                        .animation(.spring(response: 0.5, dampingFraction: 0.6), value: showFinalPrice) // CLEANED
-
-                    HStack { // CLEANED
-                        ForEach(0..<5) { _ in // CLEANED
-                            Text("🎉") // CLEANED
-                                .font(.title) // CLEANED
-                                .offset(y: showFinalPrice ? -20 : 0) // CLEANED
-                                .opacity(showFinalPrice ? 0 : 1) // CLEANED
-                                .animation(.easeOut(duration: 1.0).delay(Double.random(in: 0...0.5)), value: showFinalPrice) // CLEANED
-                        } // CLEANED
-                    } // CLEANED
-                } // CLEANED
-                .transition(.scale) // CLEANED
-            } // CLEANED
-
-            if showFinalPrice { // CLEANED
-                Button(action: collectTemplate) { // CLEANED
-                    Text("🎉 Collect Template") // CLEANED
-                        .font(.title2) // CLEANED
-                        .padding() // CLEANED
-                        .background(Color.blue) // CLEANED
-                        .foregroundColor(.white) // CLEANED
-                        .cornerRadius(10) // CLEANED
-                } // CLEANED
-                .transition(.opacity) // CLEANED
-            } // CLEANED
-        } // CLEANED
-        .padding() // CLEANED
-        .onAppear(perform: revealNext) // CLEANED
-    } // CLEANED
-
-    private func revealNext() { // CLEANED
-        if currentIndex < creditsResult.breakdown.count { // CLEANED
-            withAnimation(.easeIn(duration: 0.5)) { // CLEANED
-                revealedItems.append(currentIndex) // CLEANED
-            } // CLEANED
-            currentIndex += 1 // CLEANED
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { // CLEANED
-                revealNext() // CLEANED
-            } // CLEANED
-        } else { // CLEANED
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { // CLEANED
-                withAnimation(.spring()) { // CLEANED
-                    showFinalPrice = true // CLEANED
-                } // CLEANED
-            } // CLEANED
-        } // CLEANED
-    } // CLEANED
-
-    private func collectTemplate() { // CLEANED
-        if whipCoinsManager.consumeWhipCoins(creditsResult.whipCoins) { // CLEANED
-            onCollected() // CLEANED
-            dismiss() // CLEANED
-        } else { // CLEANED
-            onNeedWhipCoins() // CLEANED
-            dismiss() // CLEANED
-        } // CLEANED
-    } // CLEANED
-} // CLEANED
+// [Removed WhipCoinsView and PricingRevealView]
 
 // MARK: - [Other UI components remain unchanged]
 // [ParticipantHoursInputView, TemplateListView, CalculationResultView, etc. remain the same]
