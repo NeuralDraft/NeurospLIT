@@ -56,6 +56,12 @@ To restore the package/tests temporarily:
 Optional CI guard (if you restore CI):
 - Add a step post-build to assert `WhipTip.app/Info.plist` contains `DEEPSEEK_API_KEY` and fail if missing to avoid shipping without a usable config.
 
+## Changelog
+- Removal: All legacy WhipCoins code (manager, views, pricing types, UI bindings) removed. Subscriptions (StoreKit 2) remain intact.
+- Fix: Chat DTOs corrected (e.g., `ChatRequestDTO.stream: Bool`, `ChatChoiceDTO.Message.content: String`).
+- Fix: Debug logging typos corrected (`whitespacesAndNewlines`, `prefix`).
+- Cleanup: DEBUG test helper hooks deduplicated.
+
 ## Appendix: Build details
 - Xcode generates Info.plist (`GENERATE_INFOPLIST_FILE = YES`).
 - A shell script build phase injects `DEEPSEEK_API_KEY` into the built Info.plist.
