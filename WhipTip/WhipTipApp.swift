@@ -1161,8 +1161,14 @@ class APIService: ObservableObject {
     private let session: URLSession
     private let networkMonitor = NetworkMonitor()
     // CLEANED
+    #if DEBUG
+    private var __testBundleKey: String? = nil
+    #endif
     private var bundleAPIKey: String {
-        (Bundle.main.object(forInfoDictionaryKey: "DEEPSEEK_API_KEY") as? String) ?? ""
+        #if DEBUG
+        if let v = __testBundleKey { return v }
+        #endif
+        return (Bundle.main.object(forInfoDictionaryKey: "DEEPSEEK_API_KEY") as? String) ?? ""
     }
     private let overrideUDKey = "DeepSeekAPIKeyOverride"
     private let baseURL = URL(string: "https://api.deepseek.com/v1/chat/completions")!
@@ -1177,10 +1183,15 @@ class APIService: ObservableObject {
         let overrideKey = (UserDefaults.standard.string(forKey: overrideUDKey) ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
         let effective = effectiveAPIKey.trimmingCharacters(in: .whitespacesAndNewlines)
         print("[APIService] Bundle key present? \(!bundleKey.isEmpty). Override present? \(!overrideKey.isEmpty). Effective present? \(!effective.isEmpty). Bundle: \(Bundle.main.bundleIdentifier ?? "(nil)")")
+        debugLogActiveKeySource()
         #endif
     }
     
-    // Effective API key resolution prioritizing UserDefaults override, then Info.plist
+    // Effective API key resolution
+    // Priority:
+    // 1) UserDefaults override (key: "DeepSeekAPIKeyOverride")
+    // 2) Info.plist value (key: "DEEPSEEK_API_KEY"; injected via xcconfig/build phase)
+    // 3) Else: return empty string — callers detect empty, set `showMissingKeyAlert`, and block API calls
     // CLEANED
     private var effectiveAPIKey: String {
         if let override = UserDefaults.standard.string(forKey: overrideUDKey)?.trimmingCharacters(in: .whitespacesAndNewlines),
@@ -1201,6 +1212,24 @@ class APIService: ObservableObject {
     func clearAPIKeyOverride() {
         UserDefaults.standard.removeObject(forKey: overrideUDKey)
     }
+    #if DEBUG
+    // Test-only hooks
+    func __setBundleAPIKeyForTests(_ value: String?) { __testBundleKey = value }
+    func __clearOverridesForTests() { clearAPIKeyOverride(); __testBundleKey = nil }
+    /// Minimal surface to simulate the key-check path without performing a network request.
+    func __simulateKeyCheckForTests() throws {
+        let key = effectiveAPIKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        if key.isEmpty {
+            showMissingKeyAlert = true
+            throw APIError.missingCredentials
+        }
+    }
+    #endif
+    #if DEBUG
+    // Test-only hooks
+    func __setBundleAPIKeyForTests(_ value: String?) { __testBundleKey = value }
+    func __clearOverridesForTests() { clearAPIKeyOverride(); __testBundleKey = nil }
+    #endif
     
     private func checkNetworkConnection() throws {
         guard networkMonitor.isConnected else {
@@ -1208,6 +1237,23 @@ class APIService: ObservableObject {
             throw APIError.noInternetConnection
         }
     }
+
+    #if DEBUG
+    /// DEBUG-only: Prints the source of the current DeepSeek key, masking the value (first 4 chars + …).
+    private func debugLogActiveKeySource() {
+        let override = (UserDefaults.standard.string(forKey: overrideUDKey) ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        let plist = bundleAPIKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        let key = effectiveAPIKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        let masked = key.isEmpty ? "(none)" : String(key.prefix(4)) + "…"
+        if !override.isEmpty {
+            print("[WhipTip] Using DeepSeek key from UserDefaults override: \(masked)")
+        } else if !plist.isEmpty {
+            print("[WhipTip] Using DeepSeek key from Info.plist: \(masked)")
+        } else {
+            print("[WhipTip] DeepSeek API key missing (no override or Info.plist)")
+        }
+    }
+    #endif
     
     // Internal DTOs
     struct ChatMessageDTO: Codable { let role: String; let content: String }

@@ -21,7 +21,7 @@ Single-file SwiftUI iOS app with a production-grade tip‑splitting engine inlin
 - The build script “Inject DEEPSEEK_API_KEY” writes the value into the generated Info.plist.
 
 2) Secrets (runtime override, optional)
-- Key resolution priority: UserDefaults override > Info.plist (from xcconfig). If neither is set, onboarding shows "Missing API Key" and prompts for entry.
+- Key resolution priority: UserDefaults override > Info.plist (from xcconfig). If neither is set, onboarding shows "Missing API Key" and prompts for entry. In this state, API calls are blocked until a key is provided.
 
 3) Open and run
 - Open `WhipTip.xcodeproj` in Xcode and run the `WhipTip` target on a simulator or device.
@@ -52,6 +52,9 @@ To restore the package/tests temporarily:
 - Move `Legacy/Sources` back to `Sources/` and `Legacy/Tests` back to `Tests/`.
 - Re‑add the Swift package to the Xcode project or build with SwiftPM.
 - Re‑enable CI/Lint from `Legacy/.github` and `Legacy/.swiftlint.yml` as needed.
+
+Optional CI guard (if you restore CI):
+- Add a step post-build to assert `WhipTip.app/Info.plist` contains `DEEPSEEK_API_KEY` and fail if missing to avoid shipping without a usable config.
 
 ## Appendix: Build details
 - Xcode generates Info.plist (`GENERATE_INFOPLIST_FILE = YES`).
