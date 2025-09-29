@@ -672,7 +672,8 @@ final class HoursStore {
 @MainActor
 class SubscriptionManager: ObservableObject {
     // Product configuration
-    private let productId = "com.whiptip.pro.monthly"
+    // TODO: Update to your actual App Store Connect product identifier
+    private let productId = "net.neuraldraft.neurosplit.pro.monthly"
     
     // Published state
     @Published var isSubscribed = false
@@ -1216,7 +1217,7 @@ class APIService: ObservableObject {
         if stream { request.setValue("text/event-stream", forHTTPHeaderField: "Accept") }
         request.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
         let bundle = Bundle.main
-    let appId = bundle.bundleIdentifier ?? "com.whiptip.app"
+    let appId = bundle.bundleIdentifier ?? "net.neuraldraft.NeurospLIT"
         let version = (bundle.infoDictionary?["CFBundleShortVersionString"] as? String) ?? "1.0"
     let ua = "NeurospLIT/\(version) (\(appId))"
         request.setValue(ua, forHTTPHeaderField: "User-Agent")
@@ -3484,6 +3485,8 @@ struct SubscriptionView: View {
                     }
                     
                     restoreButton
+
+                    legalDisclosureSection
                 }
                 .padding()
             }
@@ -3506,6 +3509,27 @@ struct SubscriptionView: View {
                 showError = true
             }
         }
+    }
+
+    private var legalDisclosureSection: some View {
+        VStack(spacing: 8) {
+            Text("Subscription automatically renews unless cancelled at least 24 hours before the end of the period. Manage in iOS Settings → Your Name → Subscriptions.")
+                .font(.footnote)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+
+            HStack(spacing: 24) {
+                if let termsURL = URL(string: "https://neuraldraft.net/neurosplit/terms") {
+                    Link("Terms of Service", destination: termsURL)
+                }
+                if let privacyURL = URL(string: "https://neuraldraft.net/neurosplit/privacy") {
+                    Link("Privacy Policy", destination: privacyURL)
+                }
+            }
+            .font(.footnote)
+            .foregroundColor(.secondary)
+        }
+        .padding(.horizontal)
     }
     
     private var headerSection: some View {

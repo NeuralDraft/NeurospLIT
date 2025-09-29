@@ -1,4 +1,4 @@
-# WhipTip (Monolithic)
+# NeurospLIT (Monolithic)
 
 Single-file SwiftUI iOS app with a production-grade tip‑splitting engine inlined into `WhipTip/WhipTipApp.swift`. The rest of the repository is archived under `Legacy/` for reference.
 
@@ -41,6 +41,10 @@ After the app launches, try a small pool with a few participants across roles. Y
 
 ## Security
 - Store your API key in the xcconfig for development builds. For production, consider server‑mediated tokens or another secure distribution.
+
+## Legal
+- Privacy Policy: Docs/PRIVACY.md
+- Terms of Service: Docs/TERMS.md
 
 ## Legacy archive
 Everything not required for the monolithic build lives in `Legacy/` (kept for reference, not compiled):

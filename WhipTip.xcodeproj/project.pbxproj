@@ -378,8 +378,10 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = net.neuraldraft.WhipTip;
+				PRODUCT_BUNDLE_IDENTIFIER = net.neuraldraft.NeurospLIT;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				INFOPLIST_KEY_CFBundleDisplayName = NeurospLIT;
+				INFOPLIST_KEY_CFBundleName = NeurospLIT;
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -412,8 +414,10 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = net.neuraldraft.WhipTip;
+				PRODUCT_BUNDLE_IDENTIFIER = net.neuraldraft.NeurospLIT;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				INFOPLIST_KEY_CFBundleDisplayName = NeurospLIT;
+				INFOPLIST_KEY_CFBundleName = NeurospLIT;
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
