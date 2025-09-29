@@ -7,6 +7,7 @@ import Combine
 import Network
 import UIKit
 import StoreKit  // Added for StoreKit 2
+import PDFKit    // Added for PDF generation
 // Monolithic build: core engine is inlined; no external WhipCore import
 
 // Reusable keyboard "Done" toolbar for numeric fields
@@ -2694,7 +2695,7 @@ struct CalculationResultView: View {
             }
         }
         .sheet(isPresented: $showExport) {
-            ExportView(splits: calculatedSplits, tipAmount: tipAmount)
+            ExportView(splits: calculatedSplits, tipAmount: tipAmount, templateName: template.name)
         }
     }
     
@@ -3147,6 +3148,7 @@ struct DynamicSplitCard: View {
 struct ExportView: View {
     let splits: [Participant]
     let tipAmount: Double
+    let templateName: String? = nil
     
     @Environment(\.dismiss) private var dismiss
     @State private var exportFormat: ExportFormat = .csv
@@ -3277,27 +3279,170 @@ struct ExportView: View {
     private func exportData() {
         isExporting = true
         Task {
-            let content = generatePreview()
-            // Decide extension based on selected format (PDF placeholder for future implementation)
-            let ext: String
-            switch exportFormat {
-            case .csv: ext = "csv"
-            case .text: ext = "txt"
-            case .pdf: ext = "pdf" // TODO: Implement real PDF rendering
-            }
-            let fileName = "TipSplit_\(UInt(Date().timeIntervalSince1970)).\(ext)"
-            let url = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
             do {
-                try content.write(to: url, atomically: true, encoding: .utf8)
-                await MainActor.run {
-                    exportedFileURL = url
-                    showShareSheet = true
-                    isExporting = false
+                switch exportFormat {
+                case .csv:
+                    let url = try writeText(generateCSV(), ext: "csv")
+                    await MainActor.run {
+                        exportedFileURL = url; showShareSheet = true; isExporting = false
+                    }
+                case .text:
+                    let url = try writeText(generateText(), ext: "txt")
+                    await MainActor.run {
+                        exportedFileURL = url; showShareSheet = true; isExporting = false
+                    }
+                case .pdf:
+                    let url = try generatePDF()
+                    await MainActor.run {
+                        exportedFileURL = url; showShareSheet = true; isExporting = false
+                    }
                 }
             } catch {
                 await MainActor.run { isExporting = false }
             }
         }
+    }
+
+    // MARK: - PDF Generation (PDFKit)
+    private func generatePDF() throws -> URL {
+        let pageWidth: CGFloat = 612 // US Letter 8.5x11in at 72dpi
+        let pageHeight: CGFloat = 792
+        let pageRect = CGRect(x: 0, y: 0, width: pageWidth, height: pageHeight)
+        let margin: CGFloat = 36
+        let contentWidth = pageWidth - margin * 2
+
+        // Fonts
+        let titleFont = UIFont.systemFont(ofSize: 22, weight: .bold)
+        let subFont = UIFont.systemFont(ofSize: 12, weight: .regular)
+        let totalFont = UIFont.systemFont(ofSize: 28, weight: .heavy)
+        let headerFont = UIFont.systemFont(ofSize: 14, weight: .semibold)
+        let rowFont = UIFont.systemFont(ofSize: 13, weight: .regular)
+
+        // Column layout (Name, Role, Amount)
+        let nameColW = contentWidth * 0.5
+        let roleColW = contentWidth * 0.2
+        let amountColW = contentWidth * 0.3
+        let headerHeight: CGFloat = 22
+        let rowHeight: CGFloat = 20
+
+        let renderer = UIGraphicsPDFRenderer(bounds: pageRect)
+        let data = renderer.pdfData { ctx in
+            func drawHeaderFooter(page: Int) {
+                // Header title
+                let title = "Tip Split Results"
+                let attributes: [NSAttributedString.Key: Any] = [
+                    .font: titleFont,
+                    .foregroundColor: UIColor.label
+                ]
+                title.draw(at: CGPoint(x: margin, y: margin), withAttributes: attributes)
+
+                // Timestamp
+                let df = DateFormatter()
+                df.dateStyle = .medium; df.timeStyle = .short
+                let ts = df.string(from: Date())
+                let tsAttr: [NSAttributedString.Key: Any] = [
+                    .font: subFont,
+                    .foregroundColor: UIColor.secondaryLabel
+                ]
+                ts.draw(at: CGPoint(x: margin, y: margin + 26), withAttributes: tsAttr)
+
+                // Footer (template name)
+                if let name = templateName, !name.isEmpty {
+                    let footer = "Template: \(name)"
+                    let footerAttr: [NSAttributedString.Key: Any] = [
+                        .font: subFont,
+                        .foregroundColor: UIColor.secondaryLabel
+                    ]
+                    let footerSize = (footer as NSString).size(withAttributes: footerAttr)
+                    let y = pageHeight - margin - footerSize.height
+                    footer.draw(at: CGPoint(x: margin, y: y), withAttributes: footerAttr)
+                }
+            }
+
+            func drawTotal(at y: CGFloat) -> CGFloat {
+                let label = "Total Pool: \(tipAmount.currencyFormatted())"
+                let attr: [NSAttributedString.Key: Any] = [
+                    .font: totalFont,
+                    .foregroundColor: UIColor.systemPurple
+                ]
+                label.draw(at: CGPoint(x: margin, y: y), withAttributes: attr)
+                return y + 36
+            }
+
+            func drawTableHeader(at y: CGFloat) {
+                let attrs: [NSAttributedString.Key: Any] = [
+                    .font: headerFont,
+                    .foregroundColor: UIColor.label
+                ]
+                ("Name" as NSString).draw(in: CGRect(x: margin, y: y, width: nameColW, height: headerHeight), withAttributes: attrs)
+                ("Role" as NSString).draw(in: CGRect(x: margin + nameColW, y: y, width: roleColW, height: headerHeight), withAttributes: attrs)
+                ("Amount" as NSString).draw(in: CGRect(x: margin + nameColW + roleColW, y: y, width: amountColW, height: headerHeight), withAttributes: attrs)
+                // Separator
+                let ctx = UIGraphicsGetCurrentContext()
+                ctx?.setStrokeColor(UIColor.separator.cgColor)
+                ctx?.setLineWidth(1)
+                ctx?.move(to: CGPoint(x: margin, y: y + headerHeight + 2))
+                ctx?.addLine(to: CGPoint(x: margin + contentWidth, y: y + headerHeight + 2))
+                ctx?.strokePath()
+            }
+
+            func drawRow(_ split: Participant, at y: CGFloat) {
+                let attrs: [NSAttributedString.Key: Any] = [
+                    .font: rowFont,
+                    .foregroundColor: UIColor.label
+                ]
+                (split.name as NSString).draw(in: CGRect(x: margin, y: y, width: nameColW, height: rowHeight), withAttributes: attrs)
+                (split.role as NSString).draw(in: CGRect(x: margin + nameColW, y: y, width: roleColW, height: rowHeight), withAttributes: attrs)
+                let amt = (split.calculatedAmount ?? 0).currencyFormatted()
+                // Right-align amount
+                let amtAttr = attrs
+                let amtSize = (amt as NSString).size(withAttributes: amtAttr)
+                let amtX = margin + nameColW + roleColW + amountColW - amtSize.width
+                (amt as NSString).draw(at: CGPoint(x: amtX, y: y), withAttributes: amtAttr)
+            }
+
+            // Begin first page
+            ctx.beginPage()
+            drawHeaderFooter(page: 1)
+            var cursorY = margin + 50
+            cursorY = drawTotal(at: cursorY) + 8
+            drawTableHeader(at: cursorY)
+            cursorY += headerHeight + 10
+
+            let bottomLimit = pageHeight - margin - 40 // leave space for footer
+            var pageNumber = 1
+            for split in splits {
+                if cursorY + rowHeight > bottomLimit {
+                    pageNumber += 1
+                    ctx.beginPage()
+                    drawHeaderFooter(page: pageNumber)
+                    cursorY = margin + 50
+                    cursorY = drawTotal(at: cursorY) + 8
+                    drawTableHeader(at: cursorY)
+                    cursorY += headerHeight + 10
+                }
+                drawRow(split, at: cursorY)
+                cursorY += rowHeight + 6
+            }
+        }
+
+        // Save using PDFKit (as requested)
+        guard let pdfDoc = PDFDocument(data: data) else {
+            throw NSError(domain: "NeurospLIT.PDF", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to create PDF document."])
+        }
+        let fileName = "TipSplit_\(UInt(Date().timeIntervalSince1970)).pdf"
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
+        if !pdfDoc.write(to: url) {
+            throw NSError(domain: "NeurospLIT.PDF", code: -2, userInfo: [NSLocalizedDescriptionKey: "Failed to write PDF file."])
+        }
+        return url
+    }
+
+    private func writeText(_ text: String, ext: String) throws -> URL {
+        let fileName = "TipSplit_\(UInt(Date().timeIntervalSince1970)).\(ext)"
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
+        try text.write(to: url, atomically: true, encoding: .utf8)
+        return url
     }
 }
 
