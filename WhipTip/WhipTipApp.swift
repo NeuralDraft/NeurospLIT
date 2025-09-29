@@ -1180,20 +1180,16 @@ class APIService: ObservableObject {
         #endif
     }
     
-    // Effective API key resolution prioritizing Info.plist, then runtime overrides
+    // Effective API key resolution prioritizing UserDefaults override, then Info.plist
     // CLEANED
     private var effectiveAPIKey: String {
-        let plistKey = bundleAPIKey.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !plistKey.isEmpty {
-            return plistKey
-        }
         if let override = UserDefaults.standard.string(forKey: overrideUDKey)?.trimmingCharacters(in: .whitespacesAndNewlines),
            !override.isEmpty {
             return override
         }
-        if let env = ProcessInfo.processInfo.environment["DEEPSEEK_API_KEY"]?.trimmingCharacters(in: .whitespacesAndNewlines),
-           !env.isEmpty {
-            return env
+        let plistKey = bundleAPIKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !plistKey.isEmpty {
+            return plistKey
         }
         return ""
     }

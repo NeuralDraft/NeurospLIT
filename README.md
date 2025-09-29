@@ -21,7 +21,7 @@ Single-file SwiftUI iOS app with a production-grade tip‑splitting engine inlin
 - The build script “Inject DEEPSEEK_API_KEY” writes the value into the generated Info.plist.
 
 2) Secrets (runtime override, optional)
-- The app prefers a UserDefaults override if provided (e.g., from an in‑app settings screen).
+- Key resolution priority: UserDefaults override > Info.plist (from xcconfig). If neither is set, onboarding shows "Missing API Key" and prompts for entry.
 
 3) Open and run
 - Open `WhipTip.xcodeproj` in Xcode and run the `WhipTip` target on a simulator or device.
