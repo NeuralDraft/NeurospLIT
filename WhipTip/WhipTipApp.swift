@@ -456,7 +456,7 @@ func formatTemplateJSON(_ template: TipTemplate) -> String {
     return json
 }
 
-// Lightweight CSV builder stub (replaces prior csvw variable usage)
+// Lightweight CSV builder stub (replaces prior CSV writer utility)
 fileprivate func _csvEscape(_ v: String) -> String {
     if v.contains(",") || v.contains("\n") || v.contains("\"") { return "\"" + v.replacingOccurrences(of: "\"", with: "\"\"") + "\"" }
     return v
