@@ -1174,27 +1174,60 @@ class APIService: ObservableObject {
     // Internal DTOs
     struct ChatMessageDTO: Codable { let role: String; let content: String }
     struct ChatRequestDTO: Codable { let model: String; let messages: [ChatMessageDTO]; let stream: Bool }
-    struct ChatChoiceDTO: Codable { struct Message: Codable { let role: String; let content: String }; let message: Message }
+    /// Choice item returned by DeepSeek. For streaming SSE lines, the JSON can contain `choices[].delta.content`.
+    /// This decoder normalizes both shapes to `message.content` for downstream simplicity.
+    struct ChatChoiceDTO: Codable {
+        struct Message: Codable { let role: String; let content: String }
+        private struct Delta: Codable { let content: String? }
+        let message: Message
+
+        private enum CodingKeys: String, CodingKey { case message, delta }
+
+        init(message: Message) { self.message = message }
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            if let msg = try container.decodeIfPresent(Message.self, forKey: .message) {
+                self.message = msg
+            } else if let delta = try container.decodeIfPresent(Delta.self, forKey: .delta) {
+                self.message = Message(role: "assistant", content: delta.content ?? "")
+            } else {
+                self.message = Message(role: "assistant", content: "")
+            }
+        }
+    }
     struct ChatResponseDTO: Codable { let choices: [ChatChoiceDTO] }
  
     enum StreamPiece { case token(String); case done }
 
     /// Unified non-stream request returning full content
+    /// Note: For streaming use `streamChat(model:messages:)`.
+    private func buildRequest(model: String, messages: [ChatMessageDTO], stream: Bool) throws -> URLRequest {
+        try checkNetworkConnection()
+        let key = effectiveAPIKey
+        if key.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            showMissingKeyAlert = true
+            throw APIError.missingCredentials
+        }
+        var request = URLRequest(url: baseURL)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        if stream { request.setValue("text/event-stream", forHTTPHeaderField: "Accept") }
+        request.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
+        let bundle = Bundle.main
+        let appId = bundle.bundleIdentifier ?? "com.whiptip.app"
+        let version = (bundle.infoDictionary?["CFBundleShortVersionString"] as? String) ?? "1.0"
+        let ua = "WhipTip/\(version) (\(appId))"
+        request.setValue(ua, forHTTPHeaderField: "User-Agent")
+        let body = ChatRequestDTO(model: model, messages: messages, stream: stream)
+        request.httpBody = try JSONEncoder().encode(body)
+        return request
+    }
+
     private func performChat(model: String, messages: [ChatMessageDTO]) async throws -> String {
         lastStatusMessage = "Sending..."
         do {
-            try checkNetworkConnection()
-            let key = effectiveAPIKey
-            if key.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                showMissingKeyAlert = true
-                throw APIError.missingCredentials
-            }
-            var request = URLRequest(url: baseURL)
-            request.httpMethod = "POST"
-            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            request.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
-            let body = ChatRequestDTO(model: model, messages: messages, stream: false)
-            request.httpBody = try JSONEncoder().encode(body)
+            let request = try buildRequest(model: model, messages: messages, stream: false)
             #if DEBUG
             if UserDefaults.standard.bool(forKey: "DebugVerboseAPILogging") {
                 let userCount = messages.filter { $0.role == "user" }.count
@@ -1204,7 +1237,11 @@ class APIService: ObservableObject {
             let (data, response) = try await session.data(for: request)
             if let http = response as? HTTPURLResponse {
                 lastStatusMessage = "HTTP \(http.statusCode)"
-                guard 200..<300 ~= http.statusCode else { throw APIError.serverError(http.statusCode) }
+                guard 200..<300 ~= http.statusCode else {
+                    let preview = String((String(data: data, encoding: .utf8) ?? "").prefix(200))
+                    print("[WhipTip] Server error (\(http.statusCode)): \(preview)")
+                    throw APIError.serverError(http.statusCode)
+                }
             } else {
                 lastStatusMessage = "Success"
             }
@@ -1227,19 +1264,7 @@ class APIService: ObservableObject {
     func streamChat(model: String, messages: [ChatMessageDTO]) async throws -> AsyncStream<StreamPiece> {
         lastStatusMessage = "Sending..."
         do {
-            try checkNetworkConnection()
-            let key = effectiveAPIKey
-            if key.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                showMissingKeyAlert = true
-                throw APIError.missingCredentials
-            }
-            var request = URLRequest(url: baseURL)
-            request.httpMethod = "POST"
-            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
-            request.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
-            let body = ChatRequestDTO(model: model, messages: messages, stream: true)
-            request.httpBody = try JSONEncoder().encode(body)
+            let request = try buildRequest(model: model, messages: messages, stream: true)
             #if DEBUG
             if UserDefaults.standard.bool(forKey: "DebugVerboseAPILogging") {
                 let userCount = messages.filter { $0.role == "user" }.count
