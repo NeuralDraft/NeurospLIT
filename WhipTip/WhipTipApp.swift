@@ -2358,6 +2358,7 @@ struct MainDashboardView: View {
     @State private var showTemplateList = false
     @State private var tipAmount = ""
     @State private var showCalculation = false
+    @State private var showSettings = false
     
     var body: some View {
         VStack(spacing: 0) {
@@ -2379,6 +2380,9 @@ struct MainDashboardView: View {
                     tipAmount: Double(tipAmount) ?? 0
                 )
             }
+        }
+        .sheet(isPresented: $showSettings) {
+            SettingsView()
         }
     }
     
@@ -2405,6 +2409,12 @@ struct MainDashboardView: View {
             Button(action: { showTemplateList = true }) {
                 Image(systemName: "rectangle.stack")
                     .font(.title2)
+            }
+            
+            Button(action: { showSettings = true }) {
+                Image(systemName: "gear")
+                    .font(.title2)
+                    .padding(.leading, 12)
             }
             
             // Removed WhipCoins button
@@ -3152,6 +3162,8 @@ struct ExportView: View {
     let templateName: String? = nil
     
     @Environment(\.dismiss) private var dismiss
+    @AppStorage("Pref.DefaultExportFormat") private var defaultExportFormat: String = "CSV"
+    @AppStorage("Pref.CurrencyCode") private var prefCurrencyCode: String = Locale.current.currency?.identifier ?? "USD"
     @State private var exportFormat: ExportFormat = .csv
     @State private var isExporting = false
     @State private var showShareSheet = false
@@ -3183,6 +3195,14 @@ struct ExportView: View {
         .sheet(isPresented: $showShareSheet) {
             if let url = exportedFileURL {
                 ShareSheet(url: url)
+            }
+        }
+        .onAppear {
+            switch defaultExportFormat.uppercased() {
+            case "CSV": exportFormat = .csv
+            case "PDF": exportFormat = .pdf
+            case "TEXT": exportFormat = .text
+            default: break
             }
         }
     }
@@ -3253,7 +3273,7 @@ struct ExportView: View {
         let total = tipAmount > 0 ? tipAmount : nil
         for split in splits {
             let amount = split.calculatedAmount ?? 0
-            let amountStr = amount.currencyFormatted()
+            let amountStr = amount.currencyFormatted(currencyCode: prefCurrencyCode)
             let percentageStr: String
             if let total = total, total > 0 {
                 let pct = (amount / total) * 100
@@ -3267,11 +3287,11 @@ struct ExportView: View {
     }
     
     private func generateText() -> String {
-        let totalStr = tipAmount.currencyFormatted()
+        let totalStr = tipAmount.currencyFormatted(currencyCode: prefCurrencyCode)
         var text = "Tip Split - Total: \(totalStr)\n"
         text += String(repeating: "-", count: 30) + "\n"
         for split in splits {
-            let amountStr = (split.calculatedAmount ?? 0).currencyFormatted()
+            let amountStr = (split.calculatedAmount ?? 0).currencyFormatted(currencyCode: prefCurrencyCode)
             text += "\(split.emoji) \(split.name) (\(split.role)): \(amountStr)\n"
         }
         return text
