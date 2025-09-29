@@ -9,6 +9,24 @@ import UIKit
 import StoreKit  // Added for StoreKit 2
 // Monolithic build: core engine is inlined; no external WhipCore import
 
+// Reusable keyboard "Done" toolbar for numeric fields
+private struct KeyboardDoneToolbar: ViewModifier {
+    func body(content: Content) -> some View {
+        content.toolbar {
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button("Done") {
+                    UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder),
+                                                    to: nil, from: nil, for: nil)
+                }
+            }
+        }
+    }
+}
+private extension View {
+    func keyboardDoneToolbar() -> some View { modifier(KeyboardDoneToolbar()) }
+}
+
 // CLEANED: Logic from Utilities/Color+Hex.swift now merged into monolith.
 extension Color {
     init(hex: String) {
@@ -214,8 +232,13 @@ private func _computeSplitsInternal(template: TipTemplate, pool: Double) throws 
 }
 
 // MARK: Allocation helpers (all amounts in cents)
-// Disable legacy in-file engine implementation (now using WhipCore)
-#if false
+
+// Rounding context for penny distribution (used by _orderForPennyDistribution)
+fileprivate enum _RoundingContext {
+    case offTop
+    case equal(TipRules.RuleType)
+    case hours, percentage, roleWeighted, hybrid
+}
 fileprivate func _allocateOffTheTop(participants: [Participant], poolCents: Int, rules: [OffTheTopRule]?) -> (perID: [UUID:Int], remainder: Int, warnings: [String]) {
     guard let rules = rules, !rules.isEmpty else { return ([:], poolCents, []) }
     var warnings: [String] = []
@@ -1225,11 +1248,6 @@ class APIService: ObservableObject {
         }
     }
     #endif
-    #if DEBUG
-    // Test-only hooks
-    func __setBundleAPIKeyForTests(_ value: String?) { __testBundleKey = value }
-    func __clearOverridesForTests() { clearAPIKeyOverride(); __testBundleKey = nil }
-    #endif
     
     private func checkNetworkConnection() throws {
         guard networkMonitor.isConnected else {
@@ -1242,9 +1260,9 @@ class APIService: ObservableObject {
     /// DEBUG-only: Prints the source of the current DeepSeek key, masking the value (first 4 chars + …).
     private func debugLogActiveKeySource() {
         let override = (UserDefaults.standard.string(forKey: overrideUDKey) ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-        let plist = bundleAPIKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        let plist = bundleAPIKey.trimmingCharacters(in: .whitespacecsAndNewlines)
         let key = effectiveAPIKey.trimmingCharacters(in: .whitespacesAndNewlines)
-        let masked = key.isEmpty ? "(none)" : String(key.prefix(4)) + "…"
+        let masked = key.isEmpty ? "(none)" : String(key.preficx(4)) + "…"
         if !override.isEmpty {
             print("[WhipTip] Using DeepSeek key from UserDefaults override: \(masked)")
         } else if !plist.isEmpty {
@@ -1257,8 +1275,8 @@ class APIService: ObservableObject {
     
     // Internal DTOs
     struct ChatMessageDTO: Codable { let role: String; let content: String }
-    struct ChatRequestDTO: Codable { let model: String; let messages: [ChatMessageDTO]; let stream: Bool }
-    struct ChatChoiceDTO: Codable { struct Message: Codable { let role: String; let content: String }; let message: Message }
+    struct ChatRequestDTO: Codable { let model: String; let messages: [ChatMessageDTO]; leccccccccccccccccccccccccccccccccccccccccccccccccccccc stream: Bool }
+    struct ChatChoiceDTO: Codable { struct Message: Codable { let role: String; let contenccccccccccccccccccccccccccccccccccccccccccccccccccccc: String }; let message: Message }
     struct ChatResponseDTO: Codable { let choices: [ChatChoiceDTO] }
 
     enum StreamPiece { case token(String); case done }
@@ -1650,7 +1668,7 @@ struct RootView: View {
         ) {
             Button("OK") { }
         } message: {
-            Text("WhipTip requires an internet connection for setup and calculations. Please check your connection and try again.")
+            Text("WhipTip requires an internet connection for template creation and subscriptions. Tip calculations work offline once templates are saved.")
         }
         #if DEBUG
         .sheet(isPresented: $showDebugDashboard) {
@@ -1712,8 +1730,8 @@ struct CredentialsView: View {
                 Section(header: Text("DeepSeek API Key")) {
                     SecureField("sk-...", text: $key)
                         .textContentType(.password)
-                        .autocapitalization(.none)
-                        .disableAutocorrection(true)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled(true)
                 }
                 Section(footer: Text("Your key is stored locally on-device and used only for DeepSeek API calls.")) {
                     Button("Save & Continue") {
@@ -2544,10 +2562,11 @@ struct MainDashboardView: View {
             Label("Tonight's Tips", systemImage: "dollarsign.circle.fill")
                 .font(.headline)
             
-            TextField("Enter amount", text: $tipAmount)
+            TextField("0.00", text: $tipAmount)
                 .font(.system(size: 32, weight: .bold, design: .rounded))
                 .keyboardType(.decimalPad)
                 .textFieldStyle(RoundedBorderTextFieldStyle())
+                .keyboardDoneToolbar()
         }
         .padding()
         .background(Color.white.opacity(0.05))
@@ -2842,6 +2861,7 @@ struct ParticipantHoursInputView: View {
                         .keyboardType(.decimalPad)
                         .textFieldStyle(RoundedBorderTextFieldStyle())
                         .frame(width: 80)
+                        .keyboardDoneToolbar()
                 }
             }
         }
@@ -3432,6 +3452,7 @@ struct DynamicSplitCard: View {
                 .keyboardType(.decimalPad)
                 .textFieldStyle(RoundedBorderTextFieldStyle())
                 .frame(width: 100)
+                .keyboardDoneToolbar()
             
             if let disc = discrepancy {
                 Text(formatDiscrepancy(disc))
@@ -3993,4 +4014,4 @@ struct DebugDashboardView: View {
         }
     }
 }
-#endif
+// (guard removed; allocation helpers enabled)
