@@ -1,1 +1,6 @@
+# Exclude old code in Legacy from GitHub Linguist stats
 Legacy/** linguist-vendored
+
+# Ignore any TypeScript files anywhere
+*.ts linguist-vendored
+*.tsx linguist-vendored
