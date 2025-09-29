@@ -1,140 +1,60 @@
-# WhipTip
+# WhipTip (Monolithic)
 
-## Secrets & Verification
+Single-file SwiftUI iOS app with a production-grade tip‑splitting engine inlined into `WhipTip/WhipTipApp.swift`. The rest of the repository is archived under `Legacy/` for reference.
 
-This project injects the DeepSeek API key into the generated Info.plist via build settings and xcconfig. Runtime still prefers a UserDefaults override if present.
+## TL;DR
+- Open `WhipTip.xcodeproj` in Xcode (macOS).
+- Add `DEEPSEEK_API_KEY` via `Configs/Secrets.xcconfig` (preferred) or at runtime via UserDefaults.
+- Run the `WhipTip` target (iOS 16+). No Swift Package dependencies.
 
-- Configure your local secret in `Configs/Secrets.xcconfig` (git-ignored):
-
-```
-// Configs/Secrets.xcconfig
-DEEPSEEK_API_KEY = sk-deepseek-xxxxxxxxxxxxxxxx
-```
-
-- The target Debug/Release are wired to use this xcconfig as Base Configuration. The generated Info.plist contains:
-
-```
-INFOPLIST_KEY_DEEPSEEK_API_KEY = $(DEEPSEEK_API_KEY)
-```
-
-- Example file (committed): `Configs/Secrets.example.xcconfig`.
-
-### Verify the key is in the built app
-
-You can verify that your built app contains the key using the helper script:
-
-```
-# Default: Debug, simulator, iPhone 15
-./scripts/verify-deepseek-key.sh
-
-# Or specify configuration and SDK
-./scripts/verify-deepseek-key.sh --configuration Release --sdk iphonesimulator
-./scripts/verify-deepseek-key.sh --sdk iphoneos --configuration Release
-```
-
-The script builds to a temporary DerivedData folder and checks `WhipTip.app/Info.plist` for `DEEPSEEK_API_KEY`. Output masks the value.
-
-Note: At runtime, if the user has set a key via `UserDefaults` (e.g., in-app settings), that value takes precedence over the Info.plist value.
-
-Monolithic SwiftUI iOS app with **DeepSeek AI integration**.  
-A production-grade **tip splitting engine** with financial accuracy and AI-assisted onboarding.
-
-## Features
-- ✅ Offline-first calculation engine (cents-based for accuracy)
-- ✅ DeepSeek-powered onboarding assistant
-- ✅ Financial-grade rounding + penny distribution
-- ✅ Export to CSV / text
-- ✅ Subscription manager (StoreKit 2 ready)
+## What changed
+- Fully monolithic: the core models and engine (validation, rounding, penny distribution) are inlined into `WhipTipApp.swift`.
+- Removed SPM package linkage; `Sources/` and tests were moved to `Legacy/`.
+- Xcode project now builds only the app target; no test target or external frameworks.
 
 ## Setup
-1. Clone repo:
-   ```bash
-   git clone https://github.com/<YOUR_USERNAME>/WhipTip.git
-   cd WhipTip
-   ```
-2. Open in Xcode:
-   ```bash
-   open WhipTip.xcodeproj
-   ```
-3. Add your DeepSeek API key to **Info.plist**:
-   ```xml
-   <key>DEEPSEEK_API_KEY</key>
-   <string>[YOUR_KEY]</string>
-   ```
+1) Secrets (build‑time, recommended)
+- Copy `Configs/Secrets.example.xcconfig` to `Configs/Secrets.xcconfig` and set:
+  ```
+  DEEPSEEK_API_KEY = sk-deepseek-xxxxxxxxxxxxxxxx
+  ```
+- The build script “Inject DEEPSEEK_API_KEY” writes the value into the generated Info.plist.
 
-## Development
-- Architecture: Single-file monolith (`WhipTipApp.swift`).
-- Dependency: None beyond Swift + iOS 16 SDK.
-- License: MIT (optional).
+2) Secrets (runtime override, optional)
+- The app prefers a UserDefaults override if provided (e.g., from an in‑app settings screen).
 
-## Smoke Test
-After setting your API key, run in simulator and test onboarding flow:
-- Default model: `deepseek-chat`
-- Reasoning model: `deepseek-reasoner`
+3) Open and run
+- Open `WhipTip.xcodeproj` in Xcode and run the `WhipTip` target on a simulator or device.
 
-## Streaming Notes
-The `APIService` supports SSE streaming with `streaming: true` to accumulate tokens.
+Notes (Windows)
+- Building iOS requires a Mac. The VS Code task shown in this repo targets macOS `xcodebuild` and won’t run on Windows.
+
+## Engine overview
+- Inputs: `TipTemplate { participants, rules, displayConfig }` and a `pool` amount (Double).
+- Rule types supported: equal, hours‑based, percentage, role‑weighted, hybrid (`formula` like `server:60, support:40`).
+- Off‑the‑top: Optional per‑role percentages removed before the main allocation.
+- Validation: Negative numbers and inconsistent rules throw typed errors; the UI surfaces them as warnings and preserves input.
+- Rounding: All math in cents. Deterministic penny distribution with stable tie‑breaking (by remainder, then rule‑specific signal, then name/id).
+
+## Quick test drive
+After the app launches, try a small pool with a few participants across roles. You can export splits to CSV using the in‑app control.
 
 ## Security
-`DEEPSEEK_API_KEY` is stored in `Info.plist` for development; consider moving to an encrypted configuration or server-mediated token exchange before production release.
+- Store your API key in the xcconfig for development builds. For production, consider server‑mediated tokens or another secure distribution.
 
----
+## Legacy archive
+Everything not required for the monolithic build lives in `Legacy/` (kept for reference, not compiled):
+- Former Swift package `Sources/WhipCore/` and tests under `Tests/`
+- CI workflows, SwiftLint config, scripts
+- Prior `Utilities/`, `Services/`, `Engine/`, `Models/`, and React Native proofs under `WHIPTIP-main/`
 
-_Replace `<YOUR_USERNAME>` above with your GitHub username._
+To restore the package/tests temporarily:
+- Move `Legacy/Sources` back to `Sources/` and `Legacy/Tests` back to `Tests/`.
+- Re‑add the Swift package to the Xcode project or build with SwiftPM.
+- Re‑enable CI/Lint from `Legacy/.github` and `Legacy/.swiftlint.yml` as needed.
 
-## Swift Package (WhipCore)
-
-This repo now includes a pure Swift Package for the core tip-splitting engine and models.
-
-
-Use it in another project by adding this repo as a dependency, then:
-
-```swift
-import WhipCore
-```
-
-### Build and test (SwiftPM)
-
-```powershell
-# Requires Swift toolchain
-swift build
-swift test -c debug
-
-## Edge Cases & Validation
-
-The core engine (`WhipCore.computeSplits`) validates inputs and throws `WhipCoreError` for invalid cases. The app layer catches these and surfaces them as warnings without crashing.
-
-- Supported inputs:
-   - Non-negative pool amounts (Double), up to very large values (tested to $1,000,000,000.99)
-   - Any number of participants with optional `hours` and `weight` (both must be non-negative if provided)
-   - Rule types: equal, hours-based, percentage, role-weighted, hybrid (`formula` like `server:60, support:40`)
-   - Off-the-top rules with per-role percentages (>= 0)
-
-- Invalid inputs (cause thrown errors):
-   - Negative pool → `WhipCoreError.negativePool`
-   - Empty participant list → `WhipCoreError.noParticipants`
-   - Negative hours on a participant → `WhipCoreError.negativeHours(name)`
-   - Negative weight on a participant → `WhipCoreError.negativeWeight(name)`
-   - Negative off-the-top percentage → `WhipCoreError.invalidOffTheTopPercentage(role, pct)`
-   - Negative role weight → `WhipCoreError.invalidRoleWeight(role, weight)`
-
-- Rounding and determinism:
-   - All allocations are computed in cents and normalized to the exact pool total with deterministic penny distribution.
-   - Tie-breaking is stable by remainder, then by rule-specific criteria, then by name/id to ensure repeatability.
-
-See `Tests/WhipCoreTests/EngineTests.swift` for comprehensive coverage, including zero pool, hybrid with missing roles, and very large pool stress.
-```
-
-### Build and run (Xcode)
-
-Open `WhipTip.xcodeproj` and run the `WhipTip` target. The project relies on a generated Info.plist (no checked-in Info.plist). The API key is injected via `Configs/Secrets.xcconfig` or the build script.
-
-## Cleanup notes
-
-- Expo/React Native remnants under `WHIPTIP-main/` are no longer used and are ignored via `.gitignore`. You can delete that folder locally if you don't need it.
-- The app has been consolidated into `WhipTip/WhipTipApp.swift`. Legacy files under `WhipTip/`, `Models/`, `Utilities/`, and `Services/` are retained only for reference and are not compiled by the Xcode target. They can be safely removed if you prefer a lean tree.
-
-## Info.plist
-
-The Xcode target sets `GENERATE_INFOPLIST_FILE = YES` and injects `DEEPSEEK_API_KEY` at build time. There's no committed Info.plist; `WhipTip/AppInfo.template.plist` is an unused placeholder and can be removed.
+## Appendix: Build details
+- Xcode generates Info.plist (`GENERATE_INFOPLIST_FILE = YES`).
+- A shell script build phase injects `DEEPSEEK_API_KEY` into the built Info.plist.
+- No additional frameworks are required.
 
