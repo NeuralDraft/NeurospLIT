@@ -1,4 +1,4 @@
-// WhipTipApp.swift
+// NeurospLITApp.swift
 // Monolithic Single-File Build - StoreKit 2 Integration
 // CLEANED
 
@@ -1162,11 +1162,11 @@ class APIService: ObservableObject {
     let key = effectiveAPIKey.trimmingCharacters(in: .whitespacesAndNewlines)
     let masked = key.isEmpty ? "(none)" : String(key.prefix(4)) + "…"
         if !override.isEmpty {
-            print("[WhipTip] Using DeepSeek key from UserDefaults override: \(masked)")
+            print("[NeurospLIT] Using DeepSeek key from UserDefaults override: \(masked)")
         } else if !plist.isEmpty {
-            print("[WhipTip] Using DeepSeek key from Info.plist: \(masked)")
+            print("[NeurospLIT] Using DeepSeek key from Info.plist: \(masked)")
         } else {
-            print("[WhipTip] DeepSeek API key missing (no override or Info.plist)")
+            print("[NeurospLIT] DeepSeek API key missing (no override or Info.plist)")
         }
     }
     #endif
@@ -1215,9 +1215,9 @@ class APIService: ObservableObject {
         if stream { request.setValue("text/event-stream", forHTTPHeaderField: "Accept") }
         request.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
         let bundle = Bundle.main
-        let appId = bundle.bundleIdentifier ?? "com.whiptip.app"
+    let appId = bundle.bundleIdentifier ?? "com.whiptip.app"
         let version = (bundle.infoDictionary?["CFBundleShortVersionString"] as? String) ?? "1.0"
-        let ua = "WhipTip/\(version) (\(appId))"
+    let ua = "NeurospLIT/\(version) (\(appId))"
         request.setValue(ua, forHTTPHeaderField: "User-Agent")
         let body = ChatRequestDTO(model: model, messages: messages, stream: stream)
         request.httpBody = try JSONEncoder().encode(body)
@@ -1239,7 +1239,7 @@ class APIService: ObservableObject {
                 lastStatusMessage = "HTTP \(http.statusCode)"
                 guard 200..<300 ~= http.statusCode else {
                     let preview = String((String(data: data, encoding: .utf8) ?? "").prefix(200))
-                    print("[WhipTip] Server error (\(http.statusCode)): \(preview)")
+                    print("[NeurospLIT] Server error (\(http.statusCode)): \(preview)")
                     throw APIError.serverError(http.statusCode)
                 }
             } else {
@@ -1319,7 +1319,7 @@ class APIService: ObservableObject {
         useReasoning: Bool = false,
         streaming: Bool = false
     ) async throws -> OnboardingResponse {
-        let systemPrompt = "You are WhipTip's onboarding assistant. Collect restaurant tip splitting rules succinctly." + (useReasoning ? " Focus on step-by-step reasoning then produce a concise final answer." : "")
+    let systemPrompt = "You are NeurospLIT's onboarding assistant. Collect restaurant tip splitting rules succinctly." + (useReasoning ? " Focus on step-by-step reasoning then produce a concise final answer." : "")
         let model = useReasoning ? "deepseek-reasoner" : "deepseek-chat"
         let messages = [
             ChatMessageDTO(role: "system", content: systemPrompt),
@@ -1463,7 +1463,7 @@ extension EnvironmentValues {
 // MARK: - Main App [updated to use real subscription manager]
 
 @main
-struct WhipTipApp: App {
+struct NeurospLITApp: App {
     @StateObject private var subscriptionManager = SubscriptionManager()
     @StateObject private var templateManager = TemplateManager()
     @StateObject private var apiService = APIService()
@@ -1585,7 +1585,7 @@ struct RootView: View {
         ) {
             Button("OK") { }
         } message: {
-            Text("WhipTip requires an internet connection for template creation and subscriptions. Tip calculations work offline once templates are saved.")
+            Text("NeurospLIT requires an internet connection for template creation and subscriptions. Tip calculations work offline once templates are saved.")
         }
         #if DEBUG
         .sheet(isPresented: $showDebugDashboard) {
@@ -1716,7 +1716,7 @@ struct WelcomeView: View {
     
     private var titleSection: some View {
         VStack(spacing: 16) {
-            Text("Welcome to WhipTip")
+            Text("Welcome to NeurospLIT")
                 .font(.system(size: 36, weight: .black, design: .rounded))
                 .foregroundStyle(
                     LinearGradient(
@@ -2383,7 +2383,7 @@ struct MainDashboardView: View {
     private var headerSection: some View {
         HStack {
             VStack(alignment: .leading) {
-                Text("WhipTip")
+                Text("NeurospLIT")
                     .font(.title.bold())
                     #if DEBUG
                     .onTapGesture(count: 3) {
@@ -3342,7 +3342,7 @@ struct SubscriptionView: View {
                 }
                 .padding()
             }
-            .navigationTitle("WhipTip Pro")
+            .navigationTitle("NeurospLIT Pro")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -3375,7 +3375,7 @@ struct SubscriptionView: View {
                     )
                 )
             
-            Text("WhipTip Pro")
+            Text("NeurospLIT Pro")
                 .font(.title.bold())
             
             Text("Unlock unlimited templates and premium features")
