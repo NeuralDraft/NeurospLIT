@@ -26,6 +26,16 @@ extension Color {
         }
         self.init(.sRGB, red: Double(r) / 255.0, green: Double(g) / 255.0, blue: Double(b) / 255.0, opacity: Double(a) / 255.0)
     }
+    
+    // LIFECYCLE: Added hex string conversion for template customization
+    var hexString: String {
+        let components = UIColor(self).cgColor.components ?? [0, 0, 0, 0]
+        let r = components[0]
+        let g = components[1]
+        let b = components[2]
+        
+        return String(format: "%02X%02X%02X", Int(r * 255), Int(g * 255), Int(b * 255))
+    }
 }
 
 extension Double {
@@ -243,6 +253,7 @@ struct TipRules: Codable {
         case equal = "equal"
         case roleWeighted = "roleWeighted"
         case hybrid = "hybrid"
+        case custom = "custom" // LIFECYCLE: Added for custom rule support
 
         init(from decoder: Decoder) throws {
             let container = try decoder.singleValueContainer()
@@ -267,10 +278,22 @@ struct TipRules: Codable {
         }
     }
     var type: RuleType
-    var formula: String
+    var formula: String = ""
     var offTheTop: [OffTheTopRule]?
     var roleWeights: [String: Double]?
     var customLogic: String?
+    var values: [String: Double] = [:]  // LIFECYCLE: Added for consistent rule values
+    
+    // LIFECYCLE: Added constructor for TipRules
+    init(type: RuleType, formula: String = "", values: [String: Double] = [:], 
+         offTheTop: [OffTheTopRule]? = nil, roleWeights: [String: Double]? = nil, customLogic: String? = nil) {
+        self.type = type
+        self.formula = formula
+        self.values = values
+        self.offTheTop = offTheTop
+        self.roleWeights = roleWeights
+        self.customLogic = customLogic
+    }
 }
 
 struct OffTheTopRule: Codable { 
@@ -279,6 +302,7 @@ struct OffTheTopRule: Codable {
 }
 
 typealias OffTheTop = OffTheTopRule // legacy compatibility
+typealias TipRuleType = TipRules.RuleType // LIFECYCLE: Added for consistent naming
 
 struct Participant: Identifiable, Codable {
     var id: UUID = UUID()
@@ -288,8 +312,36 @@ struct Participant: Identifiable, Codable {
     var weight: Double?
     var calculatedAmount: Double?
     var actualAmount: Double?
+    // LIFECYCLE: Added direct emoji property for template customization
+    var emojiOverride: String?
+    var colorHex: String?
+    var percentage: Double?
+    
+    // LIFECYCLE: Added convenience initializer for template editing
+    init(id: UUID = UUID(), name: String, role: String, 
+         emoji: String? = nil, color: Color? = nil, 
+         hours: Double? = nil, weight: Double? = nil, 
+         calculatedAmount: Double? = nil, actualAmount: Double? = nil,
+         percentage: Double? = nil) {
+        self.id = id
+        self.name = name
+        self.role = role
+        self.emojiOverride = emoji
+        if let color = color {
+            self.colorHex = color.hexString
+        }
+        self.hours = hours
+        self.weight = weight
+        self.calculatedAmount = calculatedAmount
+        self.actualAmount = actualAmount
+        self.percentage = percentage
+    }
 
     var emoji: String {
+        if let override = emojiOverride {
+            return override
+        }
+        
         switch role.lowercased() {
         case "server": return "👤"
         case "busser": return "🍽️"
@@ -301,15 +353,26 @@ struct Participant: Identifiable, Codable {
         }
     }
 
+    // LIFECYCLE: Updated to support customizable colors with hex storage
     var color: Color {
-        switch role.lowercased() {
-        case "server": return .purple
-        case "busser": return .blue
-        case "host": return .mint
-        case "bartender": return .orange
-        case "cook", "kitchen": return .pink
-        case "manager": return .indigo
-        default: return .gray
+        get {
+            if let hex = colorHex {
+                return Color(hex: hex)
+            }
+            
+            // Default colors based on role
+            switch role.lowercased() {
+            case "server": return Color(hex: "6C8EAD") // Blue-gray
+            case "bartender": return Color(hex: "A3C9A8") // Mint
+            case "host": return Color(hex: "FFD275") // Gold
+            case "busser": return Color(hex: "FF8C42") // Orange
+            case "cook", "kitchen": return Color(hex: "F96E46") // Red-orange
+            case "manager": return Color(hex: "9C89B8") // Purple
+            default: return Color(hex: "F0A6CA") // Pink
+            }
+        }
+        set {
+            colorHex = newValue.hexString
         }
     }
 }
@@ -319,16 +382,48 @@ struct DisplayConfig: Codable {
     var accentColor: String
     var showPercentages: Bool
     var showComparison: Bool
+    // LIFECYCLE: Added new display configuration options
+    var showHours: Bool = true
+    var showRole: Bool = true
+    
+    init(primaryVisualization: String = "pie", accentColor: String = "#1E88E5", showPercentages: Bool = true, showComparison: Bool = true, showHours: Bool = true, showRole: Bool = true) {
+        self.primaryVisualization = primaryVisualization
+        self.accentColor = accentColor
+        self.showPercentages = showPercentages
+        self.showComparison = showComparison
+        self.showHours = showHours
+        self.showRole = showRole
+    }
 }
 
 struct TipTemplate: Identifiable, Codable {
     var id: UUID = UUID()
     var name: String
     var createdDate: Date
+    // LIFECYCLE-UI: Added last edited date
+    var lastEditedDate: Date?
     var rules: TipRules
     var participants: [Participant]
     var displayConfig: DisplayConfig
     var schemaVersion: TemplateVersion = TemplateVersion(version: TemplateVersion.currentVersion, createdWith: TemplateVersion.currentAppVersion)
+    
+    // LIFECYCLE-UI: Updated initializer to include lastEditedDate
+    init(id: UUID = UUID(), name: String, createdDate: Date = Date(), 
+         lastEditedDate: Date? = nil,
+         rules: TipRules, participants: [Participant], 
+         displayConfig: DisplayConfig = DisplayConfig(),
+         schemaVersion: TemplateVersion? = nil) {
+        self.id = id
+        self.name = name
+        self.createdDate = createdDate
+        self.lastEditedDate = lastEditedDate
+        self.rules = rules
+        self.participants = participants
+        self.displayConfig = displayConfig
+        if let version = schemaVersion {
+            self.schemaVersion = version
+        }
+    }
 }
 
 struct TemplateVersion: Codable {
@@ -770,6 +865,8 @@ class TemplateManager: ObservableObject {
     
     private let storageKey = "savedTemplates"
     
+    static let shared = TemplateManager() // LIFECYCLE: Added shared instance for consistency
+    
     init() {
         loadTemplates()
     }
@@ -792,6 +889,30 @@ class TemplateManager: ObservableObject {
     func saveTemplate(_ template: TipTemplate) {
         templates.append(template)
         saveTemplates()
+    }
+    
+    // LIFECYCLE-UI: Enhanced update method to set lastEditedDate
+    func updateTemplate(_ updatedTemplate: TipTemplate) {
+        if let index = templates.firstIndex(where: { $0.id == updatedTemplate.id }) {
+            // Set the last edited date to now
+            var template = updatedTemplate
+            template.lastEditedDate = Date()
+            templates[index] = template
+            saveTemplates()
+        }
+    }
+    
+    // LIFECYCLE: Added method to duplicate a template
+    func duplicateTemplate(_ template: TipTemplate) -> TipTemplate {
+        var duplicatedTemplate = template
+        duplicatedTemplate.id = UUID() // Generate new ID
+        duplicatedTemplate.name = "Copy of \(template.name)"
+        duplicatedTemplate.createdDate = Date() // Update creation date
+        
+        templates.append(duplicatedTemplate)
+        saveTemplates()
+        
+        return duplicatedTemplate
     }
     
     func saveTemplates() {
@@ -1592,6 +1713,116 @@ class APIService: ObservableObject {
             set: { self.showMissingKeyAlert = $0 }
         )
     }
+    
+    // RETRY: Helper method to perform HTTP requests with retry logic and exponential backoff
+    private func performWithRetry<T: Decodable>(
+        request: URLRequest,
+        decode type: T.Type,
+        maxRetries: Int = 3
+    ) async throws -> T {
+        // RETRY: Initialize attempt counter and backoff duration
+        var attempts = 0
+        var lastError: Error?
+        
+        // RETRY: Continue retrying until max attempts reached
+        while attempts <= maxRetries {
+            do {
+                // RETRY: Increment attempt counter
+                attempts += 1
+                
+                // RETRY: Perform the network request
+                let (data, response) = try await session.data(for: request)
+                
+                // RETRY: Check if we have a valid HTTP response
+                guard let httpResponse = response as? HTTPURLResponse else {
+                    throw AppError.api(.invalidResponse)
+                }
+                
+                // RETRY: Handle response based on status code
+                switch httpResponse.statusCode {
+                case 200:
+                    // RETRY: Success! Decode the response and return
+                    await MainActor.run { lastStatusMessage = "Response complete" }
+                    let decoder = JSONDecoder()
+                    return try decoder.decode(type, from: data)
+                    
+                case 401, 403:
+                    // RETRY: Authentication failures - do not retry, fail immediately
+                    if httpResponse.statusCode == 401 {
+                        throw AppError.authentication(.unauthorized)
+                    } else {
+                        throw AppError.authentication(.forbidden)
+                    }
+                    
+                case 429:
+                    // RETRY: Rate limiting - retry with backoff
+                    #if DEBUG
+                    print("RETRY: Got rate limit (429), attempt \(attempts)/\(maxRetries+1)")
+                    #endif
+                    
+                    if attempts > maxRetries {
+                        throw AppError.authentication(.throttled)
+                    }
+                    
+                    // RETRY: Wait with exponential backoff
+                    let backoffSeconds = pow(2.0, Double(attempts - 1))
+                    try await Task.sleep(nanoseconds: UInt64(backoffSeconds * 1_000_000_000))
+                    continue
+                    
+                case 500...599:
+                    // RETRY: Server error - retry with backoff
+                    #if DEBUG
+                    print("RETRY: Got server error (\(httpResponse.statusCode)), attempt \(attempts)/\(maxRetries+1)")
+                    #endif
+                    
+                    if attempts > maxRetries {
+                        throw AppError.network(.serverError(httpResponse.statusCode))
+                    }
+                    
+                    // RETRY: Wait with exponential backoff
+                    let backoffSeconds = pow(2.0, Double(attempts - 1))
+                    try await Task.sleep(nanoseconds: UInt64(backoffSeconds * 1_000_000_000))
+                    continue
+                    
+                default:
+                    // RETRY: Other HTTP errors - fail immediately
+                    throw AppError.network(.networkError(httpResponse.statusCode))
+                }
+                
+            } catch let error as AppError {
+                // RETRY: Pass through AppError without retrying (they've already been processed)
+                throw error
+                
+            } catch let error where error.isNetworkError {
+                // RETRY: Network errors (timeout, connection issues) - retry with backoff
+                #if DEBUG
+                print("RETRY: Network error encountered, attempt \(attempts)/\(maxRetries+1): \(error.localizedDescription)")
+                #endif
+                
+                lastError = error
+                
+                if attempts > maxRetries {
+                    // RETRY: Max retries reached, throw network error
+                    throw AppError.network(.networkError(0))
+                }
+                
+                // RETRY: Wait with exponential backoff
+                let backoffSeconds = pow(2.0, Double(attempts - 1))
+                try await Task.sleep(nanoseconds: UInt64(backoffSeconds * 1_000_000_000))
+                continue
+                
+            } catch {
+                // RETRY: Other unexpected errors - no retry
+                #if DEBUG
+                print("RETRY: Unhandled error: \(error.localizedDescription)")
+                #endif
+                throw AppError.api(.unknown(error))
+            }
+        }
+        
+        // RETRY: This should not be reached due to the throw in the loop, but just in case
+        throw AppError.api(.unknown(lastError ?? NSError(domain: "RetryExhausted", code: -1, userInfo: nil)))
+    }
 
     // Generate a template based on natural language description
     func generateTemplate(from description: String, systemPrompt: String) async throws -> OnboardingResponse {
@@ -1601,6 +1832,7 @@ class APIService: ObservableObject {
             throw AppError.authentication(.missingCredentials)
         }
         
+        // RETRY: Prepare request payload
         let messages = [
             ChatMessageDTO(role: "system", content: systemPrompt),
             ChatMessageDTO(role: "user", content: description)
@@ -1614,48 +1846,32 @@ class APIService: ObservableObject {
         
         let jsonData = try JSONEncoder().encode(requestBody)
         
+        // RETRY: Build request with authentication headers
         var request = URLRequest(url: baseURL)
         request.httpMethod = "POST"
         request.httpBody = jsonData
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("Bearer \(effectiveAPIKey)", forHTTPHeaderField: "Authorization")
         
-        let (data, response) = try await session.data(for: request)
+        await MainActor.run { lastStatusMessage = "Connecting..." }
         
-        guard let httpResponse = response as? HTTPURLResponse else {
+        // RETRY: Use performWithRetry to handle the request with automatic retries
+        let chatResponse = try await performWithRetry(request: request, decode: ChatResponseDTO.self)
+        
+        // RETRY: Process the successful response
+        guard let content = chatResponse.choices.first?.message.content else {
             throw AppError.api(.invalidResponse)
         }
         
-        switch httpResponse.statusCode {
-        case 200:
-            do {
-                let chatResponse = try JSONDecoder().decode(ChatResponseDTO.self, from: data)
-                guard let content = chatResponse.choices.first?.message.content else {
-                    throw AppError.api(.invalidResponse)
-                }
-                
-                do {
-                    let jsonData = content.data(using: .utf8)!
-                    let response = try JSONDecoder().decode(OnboardingResponse.self, from: jsonData)
-                    return response
-                } catch let error as DecodingError {
-                    print("Failed to parse onboarding response: \(error)")
-                    throw AppError.api(.decodingError(error))
-                }
-            } catch {
-                throw AppError.api(.decodingError(error))
-            }
-            
-        case 401:
-            throw AppError.authentication(.unauthorized)
-        case 403:
-            throw AppError.authentication(.forbidden)
-        case 429:
-            throw AppError.authentication(.throttled)
-        case 500...599:
-            throw AppError.network(.serverError(httpResponse.statusCode))
-        default:
-            throw AppError.network(.networkError(httpResponse.statusCode))
+        do {
+            let jsonData = content.data(using: .utf8)!
+            let response = try JSONDecoder().decode(OnboardingResponse.self, from: jsonData)
+            return response
+        } catch let error as DecodingError {
+            #if DEBUG
+            print("RETRY: Failed to parse onboarding response: \(error)")
+            #endif
+            throw AppError.api(.decodingError(error))
         }
     }
 
@@ -1680,6 +1896,7 @@ class APIService: ObservableObject {
             throw AppError.authentication(.missingCredentials)
         }
         
+        // RETRY: Prepare the JSON data for the prompt
         let encoder = JSONEncoder()
         encoder.outputFormatting = .prettyPrinted
         
@@ -1703,6 +1920,7 @@ class APIService: ObservableObject {
         Explain how the calculation works, what rules were applied, and why each person received their amount.
         """
         
+        // RETRY: Prepare request payload
         let messages = [
             ChatMessageDTO(role: "system", content: "You are a helpful assistant that explains tip calculations."),
             ChatMessageDTO(role: "user", content: prompt)
@@ -1716,41 +1934,24 @@ class APIService: ObservableObject {
         
         let jsonData = try JSONEncoder().encode(requestBody)
         
+        // RETRY: Build request with authentication headers
         var request = URLRequest(url: baseURL)
         request.httpMethod = "POST"
         request.httpBody = jsonData
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("Bearer \(effectiveAPIKey)", forHTTPHeaderField: "Authorization")
         
-        let (data, response) = try await session.data(for: request)
+        await MainActor.run { lastStatusMessage = "Analyzing calculation..." }
         
-        guard let httpResponse = response as? HTTPURLResponse else {
+        // RETRY: Use performWithRetry to handle the request with automatic retries
+        let chatResponse = try await performWithRetry(request: request, decode: ChatResponseDTO.self)
+        
+        // RETRY: Process successful response
+        guard let content = chatResponse.choices.first?.message.content else {
             throw AppError.api(.invalidResponse)
         }
         
-        switch httpResponse.statusCode {
-        case 200:
-            do {
-                let chatResponse = try JSONDecoder().decode(ChatResponseDTO.self, from: data)
-                guard let content = chatResponse.choices.first?.message.content else {
-                    throw AppError.api(.invalidResponse)
-                }
-                return content
-            } catch {
-                throw AppError.api(.decodingError(error))
-            }
-            
-        case 401:
-            throw AppError.authentication(.unauthorized)
-        case 403:
-            throw AppError.authentication(.forbidden)
-        case 429:
-            throw AppError.authentication(.throttled)
-        case 500...599:
-            throw AppError.network(.serverError(httpResponse.statusCode))
-        default:
-            throw AppError.network(.networkError(httpResponse.statusCode))
-        }
+        return content
     }
 }
 
@@ -2649,9 +2850,79 @@ struct TemplateDetailView: View {
     @State private var error: AppError?
     @ObservedObject var apiService = APIService()
     
+    // LIFECYCLE: Added state variables for edit and duplicate functionality
+    @State private var showingEditSheet = false
+    @State private var showingDuplicateConfirmation = false
+    @State private var showingDuplicateOptions = false
+    @State private var duplicatedTemplate: TipTemplate?
+    // LIFECYCLE-UI: Added state variable for delete confirmation
+    @State private var showingDeleteAlert = false
+    
+    // LIFECYCLE-UI: Enhanced date formatter for created/edited date
+    private let dateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+        return formatter
+    }()
+    
+    // LIFECYCLE-UI: Relative date formatter for showing last edited
+    private let relativeDateFormatter: RelativeDateTimeFormatter = {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.dateTimeStyle = .named
+        return formatter
+    }()
+    
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
+                // LIFECYCLE-UI: Enhanced template metadata section with last edited date
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack {
+                        VStack(alignment: .leading) {
+                            Text("Created: \(dateFormatter.string(from: template.createdDate))")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            
+                            if let lastEdited = template.lastEditedDate {
+                                Text("Last edited: \(relativeDateFormatter.localizedString(for: lastEdited, relativeTo: Date()))")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                        
+                        Spacer()
+                        
+                        // LIFECYCLE-UI: Enhanced template actions menu
+                        Menu {
+                            Button(action: {
+                                showingEditSheet = true
+                            }) {
+                                Label("Edit Template", systemImage: "pencil")
+                            }
+                            
+                            Button(action: {
+                                showingDuplicateOptions = true
+                            }) {
+                                Label("Duplicate Template", systemImage: "plus.square.on.square")
+                            }
+                            
+                            Divider()
+                            
+                            // LIFECYCLE-UI: Added delete option
+                            Button(role: .destructive, action: {
+                                showingDeleteAlert = true
+                            }) {
+                                Label("Delete Template", systemImage: "trash")
+                            }
+                        } label: {
+                            Image(systemName: "ellipsis.circle")
+                                .font(.title3)
+                        }
+                    }
+                }
+                .padding(.bottom, 4)
+                
                 // Tip Amount Input
                 VStack(alignment: .leading) {
                     Text("Total Tip Amount")
@@ -2674,6 +2945,53 @@ struct TemplateDetailView: View {
                         .padding(.vertical, 4)
                     }
                 }
+                
+                // LIFECYCLE-UI: Enhanced template management buttons with delete
+                HStack(spacing: 8) {
+                    Button(action: {
+                        showingEditSheet = true
+                    }) {
+                        HStack {
+                            Image(systemName: "pencil")
+                            Text("Edit")
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.blue.opacity(0.1))
+                        .foregroundColor(.blue)
+                        .cornerRadius(8)
+                    }
+                    
+                    Button(action: {
+                        showingDuplicateOptions = true
+                    }) {
+                        HStack {
+                            Image(systemName: "plus.square.on.square")
+                            Text("Duplicate")
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.green.opacity(0.1))
+                        .foregroundColor(.green)
+                        .cornerRadius(8)
+                    }
+                    
+                    // LIFECYCLE-UI: Added delete button
+                    Button(action: {
+                        showingDeleteAlert = true
+                    }) {
+                        HStack {
+                            Image(systemName: "trash")
+                            Text("Delete")
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.red.opacity(0.1))
+                        .foregroundColor(.red)
+                        .cornerRadius(8)
+                    }
+                }
+                .padding(.vertical)
                 
                 // Calculate Button
                 PrimaryButton(title: "Calculate Split", action: calculateSplit)
@@ -2739,6 +3057,48 @@ struct TemplateDetailView: View {
             .sheet(isPresented: $showingExplanation) {
                 ExplanationView(explanation: explanation)
             }
+            // LIFECYCLE-UI: Enhanced sheet for editing the template
+            .sheet(isPresented: $showingEditSheet) {
+                NavigationView {
+                    TemplateEditView(template: template, templateManager: templateManager)
+                        .navigationBarTitle("Edit Template", displayMode: .inline)
+                }
+                .navigationViewStyle(StackNavigationViewStyle())
+            }
+            // LIFECYCLE-UI: Enhanced action sheet for duplicate options
+            .actionSheet(isPresented: $showingDuplicateOptions) {
+                ActionSheet(
+                    title: Text("Duplicate Template"),
+                    message: Text("Do you want to update this template or save as new?"),
+                    buttons: [
+                        .default(Text("Update Current Template")) {
+                            showingEditSheet = true
+                        },
+                        .default(Text("Save as New Template")) {
+                            duplicateTemplate()
+                            showingDuplicateConfirmation = true
+                        },
+                        .cancel()
+                    ]
+                )
+            }
+            // LIFECYCLE: Alert for duplicate confirmation
+            .alert(isPresented: $showingDuplicateConfirmation) {
+                Alert(
+                    title: Text("Template Duplicated"),
+                    message: Text("A copy of this template has been created."),
+                    dismissButton: .default(Text("OK"))
+                )
+            }
+            // LIFECYCLE-UI: Added delete confirmation alert
+            .alert("Delete Template", isPresented: $showingDeleteAlert, actions: {
+                Button("Cancel", role: .cancel) { }
+                Button("Delete", role: .destructive) {
+                    deleteTemplate()
+                }
+            }, message: {
+                Text("Are you sure you want to delete this template? This action cannot be undone.")
+            })
         }
     }
     
@@ -2793,6 +3153,18 @@ struct TemplateDetailView: View {
                 }
             }
         }
+    }
+    
+    // LIFECYCLE: Method to duplicate the current template
+    func duplicateTemplate() {
+        duplicatedTemplate = templateManager.duplicateTemplate(template)
+    }
+    
+    // LIFECYCLE-UI: Method to delete the template
+    func deleteTemplate() {
+        templateManager.deleteTemplate(template)
+        // Navigate back after deletion using the presentation mode
+        presentationMode.wrappedValue.dismiss()
     }
 }
 
