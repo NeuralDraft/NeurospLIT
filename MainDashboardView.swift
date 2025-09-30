@@ -10,6 +10,10 @@ struct MainDashboardView: View {
     @State private var showingFilterOptions = false
     @State private var filterRole: String?
     
+    // SHIFT: Add state variable for shift history view
+    @State private var showingShiftHistory = false
+    @ObservedObject private var shiftLogManager = ShiftLogManager.shared
+    
     var filteredTemplates: [TipTemplate] {
         templateManager.templates.filter { template in
             (searchText.isEmpty || 
@@ -55,6 +59,10 @@ struct MainDashboardView: View {
                 buttons: filterButtons
             )
         }
+        // SHIFT: Add sheet for shift history
+        .sheet(isPresented: $showingShiftHistory) {
+            ShiftHistoryView()
+        }
     }
     
     var filterButtons: [ActionSheet.Button] {
@@ -97,11 +105,47 @@ struct MainDashboardView: View {
             }
             .padding(.horizontal, 40)
             .padding(.top)
+            
+            // SHIFT: Add shift history button in empty state
+            if !shiftLogManager.shiftLogs.isEmpty {
+                Button(action: {
+                    showingShiftHistory = true
+                }) {
+                    HStack {
+                        Image(systemName: "clock.arrow.circlepath")
+                        Text("View Shift History")
+                    }
+                    .padding()
+                    .foregroundColor(.blue)
+                }
+                .padding(.top, 8)
+            }
         }
     }
     
     var contentView: some View {
         ScrollView {
+            // SHIFT: Add Shift History button
+            HStack {
+                Spacer()
+                
+                Button(action: {
+                    showingShiftHistory = true
+                }) {
+                    HStack {
+                        Image(systemName: "clock.arrow.circlepath")
+                        Text("Shift History")
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+                    .background(Color.blue.opacity(0.1))
+                    .foregroundColor(.blue)
+                    .cornerRadius(20)
+                }
+                .padding(.horizontal)
+            }
+            .padding(.vertical, 8)
+            
             LazyVStack(spacing: 12) {
                 if !filteredTemplates.isEmpty {
                     ForEach(filteredTemplates) { template in

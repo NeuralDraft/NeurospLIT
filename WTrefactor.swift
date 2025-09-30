@@ -8,6 +8,8 @@ import UIKit
 import StoreKit
 import PDFKit
 import AVFoundation
+// SHIFT: Import ShiftLog model
+import Foundation
 import Speech
 
 // MARK: - Extensions
@@ -3249,6 +3251,9 @@ struct CalculationResultView: View {
     let template: TipTemplate
     @State private var showingShareOptions = false
     @State private var shareText = ""
+    // SHIFT: Add ShiftLogManager for automatic logging
+    @ObservedObject private var shiftLogManager = ShiftLogManager.shared
+    @State private var shiftLogged = false
     
     var body: some View {
         ScrollView {
@@ -3340,6 +3345,29 @@ struct CalculationResultView: View {
         .sheet(isPresented: $showingShareOptions) {
             ActivityViewController(activityItems: [shareText])
         }
+        // SHIFT: Add automatic shift logging when the view appears
+        .onAppear {
+            if !shiftLogged {
+                logShift()
+                shiftLogged = true
+            }
+        }
+    }
+    
+    // SHIFT: Method to log the shift automatically
+    private func logShift() {
+        // Create a new ShiftLog from the calculation result
+        let shiftLog = ShiftLog(
+            date: Date(),
+            templateName: template.name,
+            templateId: template.id,
+            totalPool: tipAmount,
+            participants: result.splits,
+            notes: nil
+        )
+        
+        // Add to the ShiftLogManager
+        shiftLogManager.addShiftLog(shiftLog)
     }
 }
 
