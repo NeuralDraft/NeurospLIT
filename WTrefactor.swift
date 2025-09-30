@@ -259,6 +259,8 @@ enum WhipCoreError: Error, LocalizedError, Equatable {
     case negativeWeight(participantName: String)
     case invalidOffTheTopPercentage(role: String, percentage: Double)
     case invalidRoleWeight(role: String, weight: Double)
+    case invalidTotalPercentage(total: Double)
+    case invalidTotalWeight(total: Double)
 
     var errorDescription: String? {
         switch self {
@@ -274,6 +276,10 @@ enum WhipCoreError: Error, LocalizedError, Equatable {
             return "Invalid off-the-top percentage \(pct) for role: \(role)."
         case .invalidRoleWeight(let role, let w):
             return "Invalid role weight \(w) for role: \(role)."
+        case .invalidTotalPercentage(let total):
+            return "Total of off-the-top percentages (\(String(format: "%.1f", total))%) exceeds 100%."
+        case .invalidTotalWeight(let total):
+            return "Total weight (\(String(format: "%.1f", total))) must be greater than zero for percentage-based calculations."
         }
     }
 }
@@ -553,6 +559,7 @@ struct MockProduct: Identifiable {
 
 // MARK: - Engine
 // [SUBSECTION: Calculation Engine]
+// [NOTE: Engine lives here to keep core models and algorithms together; ready to split into Engine/ later]
 // [ENTITY: CalculationEngine / computeSplits]
 // [USES: TipTemplate, Participant, TipRules]
 // [FEATURE: Export | Diagnostics]
@@ -891,10 +898,9 @@ func buildCSV(for result: SplitResult) -> String {
 // MARK: - Network Monitor
 // [SUBSECTION: Network Monitor]
 // [ENTITY: NetworkMonitor]
-// [USES: Network.NWPathMonitor, Combine]
+// [USES: Network.NWPathMonitor, Combine, DispatchQueue]
 // [FEATURE: Diagnostics]
-// [SUBSECTION: Network Monitor Utilities]
-// [USES: NWPathMonitor, DispatchQueue]
+// [NOTE: Contains utility methods for monitoring network connectivity and resolving interface types]
 class NetworkMonitor: ObservableObject {
     private let monitor = NWPathMonitor()
     private let queue = DispatchQueue(label: "NetworkMonitor")
@@ -1014,7 +1020,23 @@ final class HoursStore {
     private var hours: [UUID: Double] = [:]
     
     func set(id: UUID, hours value: Double?) {
-        if let v = value, v >= 0 { hours[id] = v } else { hours.removeValue(forKey: id) }
+        // Domain-level validation: ensure hours are non-negative
+        if let v = value {
+            // Only store if value is non-negative
+            if v >= 0 { 
+                hours[id] = v 
+            } 
+            // Silently clamp negative values to zero for robustness
+            else { 
+                hours[id] = 0.0
+            }
+        } else { 
+            hours.removeValue(forKey: id) 
+        }
+    }
+    
+    func getHours(for id: UUID) -> Double? {
+        return hours[id]
     }
     
     func apply(to template: TipTemplate) -> TipTemplate {
@@ -1025,6 +1047,133 @@ final class HoursStore {
             return np
         }
         return copy
+    }
+}
+
+// MARK: - Validation Service
+// [SUBSECTION: Validation Service]
+// [ENTITY: ValidationService]
+// [USES: TipTemplate, TipRules, Participant, AppError, WhipCoreError]
+// [FEATURE: Template Lifecycle | Diagnostics]
+// [VALIDATION: Centralized preflight checks for templates, participants, rules, and tip amount; returns Result<Void, AppError|WhipCoreError>]
+enum ValidationService {
+    // Domain-layer validations (return WhipCoreError)
+    typealias DomainResult = Result<Void, WhipCoreError>
+    // UI-layer validations (return AppError)
+    typealias UIResult = Result<Void, AppError>
+
+    static func validateTemplateName(_ name: String) -> UIResult {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            return .failure(.general(title: "Validation Error", message: "Template name cannot be empty."))
+        }
+        return .success(())
+    }
+
+    static func validateTipAmount(_ amount: Double) -> UIResult {
+        if amount < 0 {
+            return .failure(.general(title: "Validation Error", message: "Tip amount cannot be negative."))
+        }
+        return .success(())
+    }
+
+    static func validateParticipantsDomain(_ participants: [Participant]) -> DomainResult {
+        guard !participants.isEmpty else { return .failure(.noParticipants) }
+        for p in participants {
+            if let h = p.hours, h < 0 { return .failure(.negativeHours(participantName: p.name)) }
+            if let w = p.weight, w < 0 { return .failure(.negativeWeight(participantName: p.name)) }
+        }
+        return .success(())
+    }
+
+    static func validateRulesDomain(_ rules: TipRules) -> DomainResult {
+        // Validate off-the-top percentages
+        if let ott = rules.offTheTop {
+            for r in ott where r.percentage < 0 {
+                return .failure(.invalidOffTheTopPercentage(role: r.role, percentage: r.percentage))
+            }
+            
+            // Check that off-the-top percentages don't exceed 100%
+            let totalPercentage = ott.reduce(0.0) { $0 + $1.percentage }
+            if totalPercentage > 100.0 {
+                return .failure(.invalidTotalPercentage(total: totalPercentage))
+            }
+        }
+        
+        // Validate role weights
+        if let rw = rules.roleWeights {
+            // Check for negative weights
+            for (role, w) in rw where w < 0 { 
+                return .failure(.invalidRoleWeight(role: role, weight: w)) 
+            }
+            
+            // For percentage-based calculations, verify weights are reasonable
+            if rules.type == .percentage {
+                let totalWeight = rw.values.reduce(0.0, +)
+                if totalWeight <= 0.0 {
+                    return .failure(.invalidTotalWeight(total: totalWeight))
+                }
+            }
+        }
+        return .success(())
+    }
+
+    static func validateTemplateDomain(_ template: TipTemplate) -> DomainResult {
+        switch validateParticipantsDomain(template.participants) {
+        case .failure(let e): return .failure(e)
+        case .success: break
+        }
+        switch validateRulesDomain(template.rules) {
+        case .failure(let e): return .failure(e)
+        case .success: break
+        }
+        return .success(())
+    }
+
+    static func validateForCalculation(template: TipTemplate, tipAmount: Double) -> UIResult {
+        switch validateTipAmount(tipAmount) {
+        case .failure(let appErr):
+            // Negative or zero tip not allowed for calculation
+            return .failure(appErr)
+        case .success: break
+        }
+        switch validateTemplateDomain(template) {
+        case .success:
+            return .success(())
+        case .failure(let domainError):
+            return .failure(toAppError(domainError))
+        }
+    }
+
+    static func toAppError(_ error: WhipCoreError) -> AppError {
+        let message = error.errorDescription ?? "Invalid input."
+        return .general(title: "Validation Error", message: message)
+    }
+    
+    // Added for TemplateEditView validation
+    static func validateTemplateEdit(name: String, participants: [Participant], rules: TipRules) -> UIResult {
+        // Validate name
+        switch validateTemplateName(name) {
+        case .failure(let error):
+            return .failure(error)
+        case .success: break
+        }
+        
+        // Validate participants
+        switch validateParticipantsDomain(participants) {
+        case .failure(let domainError):
+            return .failure(toAppError(domainError))
+        case .success: break
+        }
+        
+        // Validate rules
+        switch validateRulesDomain(rules) {
+        case .failure(let domainError):
+            return .failure(toAppError(domainError))
+        case .success: break
+        }
+        
+        return .success(())
     }
 }
 
@@ -2365,6 +2514,7 @@ extension View {
 // MARK: - Views
 // [SUBSECTION: Shared/Composite Views]
 // [USES: PrimaryButton, common components]
+// [NOTE: This subsection groups reusable view components that support multiple flows]
 
 // MARK: - Common UI Components
 // [SUBSECTION: Common UI Components]
@@ -2400,6 +2550,9 @@ struct PrimaryButton: View {
     }
 }
 
+// [ENTITY: SecondaryButton]
+// [USES: SwiftUI]
+// [FEATURE: Template Lifecycle | UX]
 struct SecondaryButton: View {
     let title: String
     let action: () -> Void
@@ -2423,6 +2576,9 @@ struct SecondaryButton: View {
     }
 }
 
+// [ENTITY: CircleProgressView]
+// [USES: SwiftUI]
+// [FEATURE: Template Lifecycle | Visualization]
 struct CircleProgressView: View {
     let progress: Double
     let color: Color
@@ -2446,6 +2602,9 @@ struct CircleProgressView: View {
     }
 }
 
+// [ENTITY: ParticipantRowView]
+// [USES: SwiftUI, Participant]
+// [FEATURE: Template Lifecycle | UX]
 struct ParticipantRowView: View {
     var participant: Participant
     var onTap: () -> Void
@@ -2483,6 +2642,9 @@ struct ParticipantRowView: View {
     }
 }
 
+// [ENTITY: AmountInputView]
+// [USES: SwiftUI]
+// [FEATURE: Template Lifecycle | Input]
 struct AmountInputView: View {
     @Binding var amount: Double
     var placeholder: String
@@ -2504,6 +2666,9 @@ struct AmountInputView: View {
     }
 }
 
+// [ENTITY: InfoCard]
+// [USES: SwiftUI]
+// [FEATURE: UX | Diagnostics]
 struct InfoCard: View {
     let title: String
     let description: String
@@ -2774,6 +2939,9 @@ struct OnboardingFlowView: View {
     }
 }
 
+// [ENTITY: ConversationBubble]
+// [USES: SwiftUI, ChatMessage]
+// [FEATURE: API Integration | UX]
 struct ConversationBubble: View {
     let message: ChatMessage
     
@@ -2987,10 +3155,6 @@ struct TemplateListView: View {
 
 // MARK: - Template Detail View
 // [SUBSECTION: Template Detail]
-// [ENTITY: TemplateDetailView]
-// [USES: TemplateManager, APIService, CalculationEngine]
-// [FEATURE: Template Lifecycle | API Integration]
-// [VALIDATION: UI-only; calculation errors surfaced via AppError]
 // [ENTITY: TemplateDetailView]
 // [USES: TemplateManager, APIService, CalculationEngine]
 // [FEATURE: Template Lifecycle | API Integration]
@@ -3260,8 +3424,17 @@ struct TemplateDetailView: View {
     }
     
     func calculateSplit() {
+    // [VALIDATION] Centralized preflight checks before calculation
+        switch ValidationService.validateForCalculation(template: template, tipAmount: tipAmount) {
+        case .failure(let appError):
+            self.error = appError
+            return
+        case .success:
+            break
+        }
+
         isCalculating = true
-        
+
         Task {
             do {
                 let result = try await apiService.calculateSplits(for: template, pool: tipAmount)
@@ -3284,6 +3457,14 @@ struct TemplateDetailView: View {
     
     func getExplanation() {
         guard let result = calculationResult else { return }
+    // [VALIDATION] Ensure domain template is valid before explanation
+        switch ValidationService.validateTemplateDomain(template) {
+        case .failure(let domainError):
+            self.error = ValidationService.toAppError(domainError)
+            return
+        case .success:
+            break
+        }
         isExplaining = true
         
         Task {
@@ -3325,6 +3506,9 @@ struct TemplateDetailView: View {
     }
 }
 
+// [ENTITY: ExplanationView]
+// [USES: SwiftUI, NavigationView]
+// [FEATURE: Template Lifecycle | Diagnostics]
 struct ExplanationView: View {
     let explanation: String
     @Environment(\.presentationMode) var presentationMode
@@ -3397,7 +3581,14 @@ struct ParticipantHoursInputView: View {
                 }
             }
             .onChange(of: hours) { newValue in
+                // Let HoursStore handle the validation
+                // [VALIDATION] Hours validation handled at domain level in HoursStore.set
                 HoursStore.shared.set(id: participant.id, hours: newValue)
+                // Update the UI if HoursStore normalized the value
+                let storedHours = HoursStore.shared.getHours(for: participant.id) ?? 0
+                if storedHours != newValue {
+                    hours = storedHours
+                }
             }
         }
     }
@@ -3406,12 +3597,9 @@ struct ParticipantHoursInputView: View {
 // MARK: - Calculation Results View
 // [SUBSECTION: Calculation Results]
 // [ENTITY: CalculationResultView]
-// [USES: CalculationEngine, ActivityViewController]
+// [USES: CalculationEngine, ShiftLogManager, ActivityViewController]
 // [FEATURE: Shift Tracking | Export]
 // [HELPER: ActivityViewController — UIKit wrapper for sharing]
-// [ENTITY: CalculationResultView]
-// [USES: ShiftLogManager (implicit), ActivityViewController]
-// [FEATURE: Shift Tracking | Export]
 struct CalculationResultView: View {
     let tipAmount: Double
     let result: SplitResult
