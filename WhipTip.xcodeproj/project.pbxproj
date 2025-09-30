@@ -366,6 +366,8 @@
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_DEEPSEEK_API_KEY = "SET-YOUR-DEEPSEEK-API-KEY";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "NeurospLIT uses the microphone for optional voice input to speed up onboarding and data entry.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "NeurospLIT uses on-device speech recognition to transcribe your voice for faster input.";
 				// CLEANED: Provide placeholder Info.plist API key; build scripts still inject real secrets when available
 				// INFOPLIST_FILE removed to rely on generated Info.plist and avoid duplicate copy
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -402,6 +404,8 @@
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_DEEPSEEK_API_KEY = "SET-YOUR-DEEPSEEK-API-KEY";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "NeurospLIT uses the microphone for optional voice input to speed up onboarding and data entry.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "NeurospLIT uses on-device speech recognition to transcribe your voice for faster input.";
 				// CLEANED: Provide placeholder Info.plist API key; build scripts still inject real secrets when available
 				// INFOPLIST_FILE removed to rely on generated Info.plist and avoid duplicate copy
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;

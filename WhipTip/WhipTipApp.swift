@@ -170,6 +170,38 @@ struct DisplayConfig: Codable {
     var showComparison: Bool
 }
 
+struct TemplateVersion: Codable {
+    let version: Int
+    let createdWith: String // app version
+
+    static let currentVersion: Int = 1
+    static var currentAppVersion: String {
+        (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String) ?? "1.0"
+    }
+}
+
+// MARK: - Template Migration
+struct TemplateMigrationService {
+    struct MigrationNote: CustomStringConvertible { let description: String }
+
+    static func migrate(templates: [TipTemplate]) -> (migrated: [TipTemplate], notes: [MigrationNote]) {
+        var notes: [MigrationNote] = []
+        var changed = false
+        let migrated = templates.map { tpl -> TipTemplate in
+            var t = tpl
+            let currentVersion = TemplateVersion.currentVersion
+            // If schemaVersion is missing or behind, bring it up and record a note
+            if t.schemaVersion.version < currentVersion {
+                notes.append(MigrationNote(description: "Upgraded template '\(t.name)' schema from v\(t.schemaVersion.version) to v\(currentVersion)"))
+                t.schemaVersion = TemplateVersion(version: currentVersion, createdWith: TemplateVersion.currentAppVersion)
+                changed = true
+            }
+            return t
+        }
+        return (changed ? migrated : templates, notes)
+    }
+}
+
 struct TipTemplate: Identifiable, Codable {
     var id: UUID = UUID()
     var name: String
@@ -177,6 +209,32 @@ struct TipTemplate: Identifiable, Codable {
     var rules: TipRules
     var participants: [Participant]
     var displayConfig: DisplayConfig
+    var schemaVersion: TemplateVersion = TemplateVersion(version: TemplateVersion.currentVersion, createdWith: TemplateVersion.currentAppVersion)
+
+    private enum CodingKeys: String, CodingKey {
+        case id, name, createdDate, rules, participants, displayConfig, schemaVersion
+    }
+
+    init(id: UUID = UUID(), name: String, createdDate: Date, rules: TipRules, participants: [Participant], displayConfig: DisplayConfig, schemaVersion: TemplateVersion = TemplateVersion(version: TemplateVersion.currentVersion, createdWith: TemplateVersion.currentAppVersion)) {
+        self.id = id
+        self.name = name
+        self.createdDate = createdDate
+        self.rules = rules
+        self.participants = participants
+        self.displayConfig = displayConfig
+        self.schemaVersion = schemaVersion
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = try container.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
+        self.name = try container.decode(String.self, forKey: .name)
+        self.createdDate = try container.decode(Date.self, forKey: .createdDate)
+        self.rules = try container.decode(TipRules.self, forKey: .rules)
+        self.participants = try container.decode([Participant].self, forKey: .participants)
+        self.displayConfig = try container.decode(DisplayConfig.self, forKey: .displayConfig)
+        self.schemaVersion = try container.decodeIfPresent(TemplateVersion.self, forKey: .schemaVersion) ?? TemplateVersion(version: TemplateVersion.currentVersion, createdWith: TemplateVersion.currentAppVersion)
+    }
 }
 
 struct SplitResult { var splits: [Participant]; var warnings: [String] }
@@ -458,7 +516,6 @@ fileprivate func _orderForPennyDistribution(ids:[UUID], remainders:[UUID:Double]
         return tie(pa,pb)
     }
 }
-#endif
 
 // MARK: - Minimal Helpers Reintroduced (previously from core)
 // CLEANED: Logic from Utilities/TemplateUtilities.swift now merged into monolith.
@@ -634,6 +691,7 @@ class NetworkMonitor: ObservableObject {
 class TemplateManager: ObservableObject {
     @Published var templates: [TipTemplate] = []
     @Published var lastError: String?
+    @Published var lastMigrationNotes: [String] = []
     
     private let storageKey = "savedTemplates"
     
@@ -648,6 +706,15 @@ class TemplateManager: ObservableObject {
                 return
             }
             templates = try JSONDecoder().decode([TipTemplate].self, from: data)
+            // Run migrations on load
+            let result = TemplateMigrationService.migrate(templates: templates)
+            if !result.notes.isEmpty {
+                lastMigrationNotes = result.notes.map { $0.description }
+                print("Template migrations: \(lastMigrationNotes.joined(separator: "; "))")
+                // Persist changes only when we actually migrated something
+                templates = result.migrated
+                saveTemplates()
+            }
             lastError = nil
         } catch {
             print("Failed to load templates: \(error)")
@@ -922,9 +989,8 @@ class SubscriptionManager: ObservableObject {
                 self.subscriptionStatus = .none
             }
         }
-            // TODO: Check for referral-based trial extension here
-            // if referralManager.hasActiveBonus() { isSubscribed = true }
-        }
+        // TODO: Check for referral-based trial extension here
+        // if referralManager.hasActiveBonus() { isSubscribed = true }
     }
     
     // MARK: - Transaction Listener
@@ -4363,3 +4429,4 @@ struct DebugDashboardView: View {
     }
 }
 // (guard removed; allocation helpers enabled)
+#endif
