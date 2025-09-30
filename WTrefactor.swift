@@ -13,9 +13,14 @@ import Foundation
 import Speech
 
 // MARK: - Extensions
+// [SECTION START id:extensions name:"Extensions"]
 
+// [SUBSECTION: Color Extensions]
+// [ENTITY: extension Color]
+// [USES: SwiftUI, UIKit]
+// [FEATURE: Diagnostics | Export]
 extension Color {
-    init(hex: String) {
+    init(hex: String) {AAAAAAAAAAAAAAAAAAAAAAAAAAAAAD
         let sanitized = hex.trimmingCharacters(in: .alphanumerics.inverted)
         var value: UInt64 = 0
         Scanner(string: sanitized).scanHexInt64(&value)
@@ -40,6 +45,10 @@ extension Color {
     }
 }
 
+// [SUBSECTION: Double Extensions]
+// [ENTITY: extension Double]
+// [USES: Foundation]
+// [FEATURE: Diagnostics | Export]
 extension Double {
     private static var _cachedFormatters: [String: NumberFormatter] = [:]
     private static func formatter(locale: Locale, currencyCode: String?) -> NumberFormatter {
@@ -63,12 +72,20 @@ extension Double {
     }
 }
 
+// [SUBSECTION: Error Extensions]
+// [ENTITY: extension Error]
+// [USES: Foundation]
+// [FEATURE: Diagnostics]
 extension Error { 
     var isNetworkError: Bool { 
         let ns = self as NSError; return ns.domain == NSURLErrorDomain || ns.domain == NSPOSIXErrorDomain 
     } 
 }
 
+// [SUBSECTION: Keyboard Done Toolbar]
+// [ENTITY: KeyboardDoneToolbar]
+// [USES: SwiftUI, UIKit]
+// [FEATURE: UX]
 private struct KeyboardDoneToolbar: ViewModifier {
     func body(content: Content) -> some View {
         content.toolbar {
@@ -83,11 +100,21 @@ private struct KeyboardDoneToolbar: ViewModifier {
     }
 }
 
+// [SUBSECTION: View Extensions]
+// [ENTITY: extension View]
+// [USES: SwiftUI]
+// [FEATURE: UX]
 private extension View {
     func keyboardDoneToolbar() -> some View { modifier(KeyboardDoneToolbar()) }
 }
 
+// [SECTION END id:extensions]
 // MARK: - Errors
+// [SECTION START id:errors name:"Errors"]
+// [SUBSECTION: AppError]
+// [ENTITY: AppError]
+// [USES: Foundation]
+// [FEATURE: Diagnostics]
 
 enum AppError: Error, LocalizedError, Identifiable {
     case network(NetworkError)
@@ -220,6 +247,11 @@ enum AppError: Error, LocalizedError, Identifiable {
     }
 }
 
+// [SUBSECTION: WhipCoreError]
+// [ENTITY: WhipCoreError]
+// [USES: Foundation]
+// [FEATURE: Diagnostics]
+// [NOTE] Keep AppError and WhipCoreError distinct; normalized formatting applies across both.
 enum WhipCoreError: Error, LocalizedError, Equatable {
     case negativePool
     case noParticipants
@@ -247,7 +279,13 @@ enum WhipCoreError: Error, LocalizedError, Equatable {
 }
 
 // MARK: - Models
+// [SECTION END id:errors]
+// [SECTION START id:models name:"Models"]
 
+// [SUBSECTION: Tip Rules]
+// [ENTITY: TipRules]
+// [USES: Foundation]
+// [VALIDATION: Unknown rule types default to .equal; decoder maps legacy snake_case variants.]
 struct TipRules: Codable {
     enum RuleType: String, Codable, CaseIterable {
         case hoursBased = "hours"
@@ -298,14 +336,21 @@ struct TipRules: Codable {
     }
 }
 
+// [ENTITY: OffTheTopRule]
+// [USES: Foundation]
+// [LEGACY: OffTheTop alias preserved for compatibility]
 struct OffTheTopRule: Codable { 
     var role: String
     var percentage: Double 
 }
 
+// [LEGACY: Typealias maintained for backward compatibility; prefer OffTheTopRule]
 typealias OffTheTop = OffTheTopRule // legacy compatibility
 typealias TipRuleType = TipRules.RuleType // LIFECYCLE: Added for consistent naming
 
+// [ENTITY: Participant]
+// [USES: SwiftUI.Color, Foundation]
+// [VALIDATION: Hours/weights non-negative recommended; emoji defaults by role]
 struct Participant: Identifiable, Codable {
     var id: UUID = UUID()
     var name: String
@@ -379,6 +424,8 @@ struct Participant: Identifiable, Codable {
     }
 }
 
+// [ENTITY: DisplayConfig]
+// [USES: UI configuration]
 struct DisplayConfig: Codable {
     var primaryVisualization: String
     var accentColor: String
@@ -398,6 +445,9 @@ struct DisplayConfig: Codable {
     }
 }
 
+// [ENTITY: TipTemplate]
+// [USES: TipRules, Participant, DisplayConfig, TemplateVersion]
+// [FEATURE: Template Lifecycle]
 struct TipTemplate: Identifiable, Codable {
     var id: UUID = UUID()
     var name: String
@@ -428,6 +478,8 @@ struct TipTemplate: Identifiable, Codable {
     }
 }
 
+// [ENTITY: TemplateVersion]
+// [VERSION: schemaVersion=currentVersion, createdWith=currentAppVersion]
 struct TemplateVersion: Codable {
     let version: Int
     let createdWith: String // app version
@@ -500,6 +552,10 @@ struct MockProduct: Identifiable {
 }
 
 // MARK: - Engine
+// [SUBSECTION: Calculation Engine]
+// [ENTITY: CalculationEngine / computeSplits]
+// [USES: TipTemplate, Participant, TipRules]
+// [FEATURE: Export | Diagnostics]
 
 private let weightNormalizationEpsilon = 0.001
 
@@ -829,8 +885,16 @@ func buildCSV(for result: SplitResult) -> String {
 }
 
 // MARK: - Services
+// [SECTION END id:models]
+// [SECTION START id:services name:"Managers & Services"]
 
 // MARK: - Network Monitor
+// [SUBSECTION: Network Monitor]
+// [ENTITY: NetworkMonitor]
+// [USES: Network.NWPathMonitor, Combine]
+// [FEATURE: Diagnostics]
+// [SUBSECTION: Network Monitor Utilities]
+// [USES: NWPathMonitor, DispatchQueue]
 class NetworkMonitor: ObservableObject {
     private let monitor = NWPathMonitor()
     private let queue = DispatchQueue(label: "NetworkMonitor")
@@ -861,6 +925,11 @@ class NetworkMonitor: ObservableObject {
 }
 
 // MARK: - Template Manager
+// [SUBSECTION: Template Manager]
+// [ENTITY: TemplateManager]
+// [USES: UserDefaults, TipTemplate, JSONEncoder/Decoder]
+// [FEATURE: Template Lifecycle | Persistence]
+// [VALIDATION: Saves/loads from UserDefaults; duplicate creates new UUID]
 class TemplateManager: ObservableObject {
     @Published var templates: [TipTemplate] = []
     @Published var lastError: String?
@@ -935,6 +1004,10 @@ class TemplateManager: ObservableObject {
 }
 
 // MARK: - HoursStore
+// [SUBSECTION: HoursStore]
+// [ENTITY: HoursStore]
+// [USES: Foundation]
+// [FEATURE: Template Lifecycle]
 final class HoursStore {
     static let shared = HoursStore()
     private init() {}
@@ -956,6 +1029,10 @@ final class HoursStore {
 }
 
 // MARK: - WhipCoins Manager
+// [SUBSECTION: WhipCoins Manager]
+// [ENTITY: WhipCoinsManager]
+// [USES: Foundation]
+// [FEATURE: Subscription | Diagnostics]
 @MainActor final class WhipCoinsManager: ObservableObject {
     @Published var whipCoins: Int = 0
     private let storageKey = "whipCoinsBalance"
@@ -1060,6 +1137,10 @@ enum PricingPolicy {
 }
 
 // MARK: - Subscription Manager
+// [SUBSECTION: Subscription Manager]
+// [ENTITY: SubscriptionManager]
+// [USES: StoreKit]
+// [FEATURE: Subscription]
 @MainActor
 class SubscriptionManager: ObservableObject {
     // Product configuration
@@ -1292,11 +1373,19 @@ class SubscriptionManager: ObservableObject {
 }
 
 // MARK: - Token Provider
+// [SUBSECTION: Token Provider]
+// [ENTITY: TokenProvider]
+// [USES: Foundation, Keychain/UserDefaults]
+// [FEATURE: API Integration]
 protocol TokenProvider {
     func getToken() async throws -> String
 }
 
 // MARK: - Local Secrets Provider
+// [SUBSECTION: Local Secrets Provider]
+// [ENTITY: LocalSecretsProvider]
+// [USES: Bundle, Foundation]
+// [FEATURE: API Integration]
 final class LocalSecretsProvider: TokenProvider {
     private let tokenKey: String
     private let expiryKey: String?
@@ -1348,6 +1437,10 @@ final class LocalSecretsProvider: TokenProvider {
 }
 
 // MARK: - Ephemeral Token Provider
+// [SUBSECTION: Ephemeral Token Provider]
+// [ENTITY: EphemeralTokenProvider]
+// [USES: Foundation, Networking]
+// [FEATURE: API Integration]
 final class EphemeralTokenProvider: TokenProvider {
     private let endpoint: URL
     private let session: URLSession
@@ -1415,6 +1508,10 @@ final class EphemeralTokenProvider: TokenProvider {
 }
 
 // MARK: - DeepSeek Chat Service
+// [SUBSECTION: Chat/LLM Service]
+// [ENTITY: DeepSeekChatService]
+// [USES: URLSession, TokenProvider]
+// [FEATURE: API Integration | Diagnostics]
 struct ChatMessage: Codable { let role: String; let content: String }
 struct ChatRequest: Codable { let model: String; let messages: [ChatMessage]; let stream: Bool }
 
@@ -1525,6 +1622,11 @@ actor DeepSeekChatService {
 }
 
 // MARK: - API Service
+// [SUBSECTION: API Service]
+// [ENTITY: APIService]
+// [USES: URLSession, TemplateManager, Engine]
+// [FEATURE: API Integration | Diagnostics]
+// [VALIDATION: Handles AppError vs WhipCoreError consistently]
 @MainActor
 class APIService: ObservableObject {
     @Published var showOfflineAlert = false
@@ -1958,6 +2060,10 @@ class APIService: ObservableObject {
 }
 
 // MARK: - Environment Keys
+// [SECTION END id:services]
+// [SECTION START id:appentry name:"App Entry"]
+// [SUBSECTION: Environment Keys]
+// [USES: SwiftUI.EnvironmentKey]
 
 private struct TemplateManagerKey: EnvironmentKey {
     static let defaultValue = TemplateManager()
@@ -1995,6 +2101,10 @@ extension EnvironmentValues {
 }
 
 // MARK: - App Entry Point
+// [SUBSECTION: WhipTipApp]
+// [ENTITY: WhipTipApp]
+// [USES: SubscriptionManager, TemplateManager, RootView]
+// [FEATURE: Subscription | Diagnostics]
 
 @main
 struct WhipTipApp: App {
@@ -2017,6 +2127,10 @@ struct WhipTipApp: App {
 }
 
 // MARK: - Root View
+// [SUBSECTION: RootView]
+// [ENTITY: RootView]
+// [USES: MainDashboardView, NavigationView]
+// [FEATURE: Template Lifecycle]
 
 struct RootView: View {
     @Environment(\.templateManager) private var templateManager
@@ -2077,7 +2191,13 @@ struct RootView: View {
     }
 }
 
+// [SECTION END id:appentry]
 // MARK: - Credentials View
+// [SECTION START id:views name:"Views"]
+// [SUBSECTION: Credentials View]
+// [ENTITY: CredentialsView]
+// [USES: SwiftUI]
+// [FEATURE: Diagnostics]
 
 struct CredentialsView: View {
     @Environment(\.apiService) private var apiService
@@ -2120,6 +2240,10 @@ struct CredentialsView: View {
 }
 
 // MARK: - Toast View
+// [SUBSECTION: Toast View]
+// [ENTITY: ToastView]
+// [USES: SwiftUI]
+// [FEATURE: Diagnostics]
 
 struct ToastView: View {
     let item: APIService.ToastItem
@@ -2185,6 +2309,10 @@ extension APIService {
 }
 
 // MARK: - Diagnostics View
+// [SUBSECTION: Diagnostics View]
+// [ENTITY: DiagnosticsView]
+// [USES: NetworkMonitor, Logs]
+// [FEATURE: Diagnostics]
 
 struct DiagnosticsView: View {
     @Environment(\.apiService) private var apiService
@@ -2235,8 +2363,14 @@ extension View {
 #endif
 
 // MARK: - Views
+// [SUBSECTION: Shared/Composite Views]
+// [USES: PrimaryButton, common components]
 
 // MARK: - Common UI Components
+// [SUBSECTION: Common UI Components]
+// [ENTITY: PrimaryButton]
+// [USES: SwiftUI]
+// [FEATURE: Template Lifecycle | Export]
 struct PrimaryButton: View {
     let title: String
     let action: () -> Void
@@ -2401,6 +2535,10 @@ struct InfoCard: View {
 }
 
 // MARK: - Welcome View
+// [SUBSECTION: Welcome View]
+// [ENTITY: WelcomeView]
+// [USES: SwiftUI]
+// [FEATURE: Onboarding]
 struct WelcomeView: View {
     @ObservedObject var templateManager: TemplateManager
     @ObservedObject var subscriptionManager: SubscriptionManager
@@ -2479,6 +2617,10 @@ struct WelcomeView: View {
 }
 
 // MARK: - Onboarding Flow
+// [SUBSECTION: Onboarding Flow]
+// [ENTITY: OnboardingFlow / related views]
+// [USES: SwiftUI]
+// [FEATURE: Onboarding]
 struct OnboardingFlowView: View {
     @ObservedObject var templateManager: TemplateManager
     @ObservedObject var viewModel = OnboardingViewModel()
@@ -2786,6 +2928,10 @@ class OnboardingViewModel: ObservableObject {
 }
 
 // MARK: - Template List View
+// [SUBSECTION: Template List]
+// [ENTITY: TemplateListView]
+// [USES: TemplateManager]
+// [FEATURE: Template Lifecycle]
 struct TemplateListView: View {
     @ObservedObject var templateManager: TemplateManager
     @State private var showingNewTemplateSheet = false
@@ -2840,6 +2986,15 @@ struct TemplateListView: View {
 }
 
 // MARK: - Template Detail View
+// [SUBSECTION: Template Detail]
+// [ENTITY: TemplateDetailView]
+// [USES: TemplateManager, APIService, CalculationEngine]
+// [FEATURE: Template Lifecycle | API Integration]
+// [VALIDATION: UI-only; calculation errors surfaced via AppError]
+// [ENTITY: TemplateDetailView]
+// [USES: TemplateManager, APIService, CalculationEngine]
+// [FEATURE: Template Lifecycle | API Integration]
+// [VALIDATION: UI-only; calculation errors surfaced via AppError]
 struct TemplateDetailView: View {
     let template: TipTemplate
     @ObservedObject var templateManager: TemplateManager
@@ -3189,6 +3344,10 @@ struct ExplanationView: View {
 }
 
 // MARK: - Participant Hours Input View
+// [SUBSECTION: Participant Hours Input]
+// [ENTITY: ParticipantHoursInputView]
+// [USES: HoursStore]
+// [FEATURE: Template Lifecycle]
 struct ParticipantHoursInputView: View {
     let participants: [Participant]
     @ObservedObject private var hoursStore = HoursStore.shared
@@ -3245,6 +3404,14 @@ struct ParticipantHoursInputView: View {
 }
 
 // MARK: - Calculation Results View
+// [SUBSECTION: Calculation Results]
+// [ENTITY: CalculationResultView]
+// [USES: CalculationEngine, ActivityViewController]
+// [FEATURE: Shift Tracking | Export]
+// [HELPER: ActivityViewController — UIKit wrapper for sharing]
+// [ENTITY: CalculationResultView]
+// [USES: ShiftLogManager (implicit), ActivityViewController]
+// [FEATURE: Shift Tracking | Export]
 struct CalculationResultView: View {
     let tipAmount: Double
     let result: SplitResult
@@ -3386,6 +3553,11 @@ struct ActivityViewController: UIViewControllerRepresentable {
 }
 
 // MARK: - Subscription View
+// [SUBSECTION: Subscription View]
+// [ENTITY: SubscriptionView]
+// [USES: SubscriptionManager]
+// [FEATURE: Subscription]
+// [SECTION END id:views]
 struct SubscriptionView: View {
     @ObservedObject var subscriptionManager: SubscriptionManager
     
