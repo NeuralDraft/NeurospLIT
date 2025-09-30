@@ -30,6 +30,19 @@ private extension View {
     func keyboardDoneToolbar() -> some View { modifier(KeyboardDoneToolbar()) }
 }
 
+// MARK: - Referral Manager Environment Key
+private struct ReferralManagerKey: EnvironmentKey {
+    static var defaultValue: ReferralManager = {
+        ReferralManager()
+    }()
+}
+extension EnvironmentValues {
+    var referralManager: ReferralManager {
+        get { self[ReferralManagerKey.self] }
+        set { self[ReferralManagerKey.self] = newValue }
+    }
+}
+
 // CLEANED: Logic from Utilities/Color+Hex.swift now merged into monolith.
 extension Color {
     init(hex: String) {
@@ -705,6 +718,9 @@ class SubscriptionManager: ObservableObject {
     @Published var hasFreeTrial = false
     @Published var trialDays = 3  // Default, will be overridden by StoreKit
     
+    // Referral integration (set by App)
+    weak var referralManager: ReferralManager?
+
     // Transaction listener
     private var updateListenerTask: Task<Void, Never>?
     
@@ -897,13 +913,15 @@ class SubscriptionManager: ObservableObject {
         
         await MainActor.run {
             self.isSubscribed = hasActiveSubscription
-            
             if hasActiveSubscription {
                 self.subscriptionStatus = isInTrial ? .trial : .active
+            } else if (self.referralManager?.hasActiveBonus() ?? false) {
+                self.isSubscribed = true
+                self.subscriptionStatus = .trial
             } else {
                 self.subscriptionStatus = .none
             }
-            
+        }
             // TODO: Check for referral-based trial extension here
             // if referralManager.hasActiveBonus() { isSubscribed = true }
         }
@@ -1598,6 +1616,92 @@ class APIService: ObservableObject {
     }
 }
 
+// MARK: - Referral Manager
+@MainActor
+class ReferralManager: ObservableObject {
+    @Published var referralCode: String? {
+        didSet { UserDefaults.standard.set(referralCode, forKey: Self.kCode) }
+    }
+    @Published var bonusDaysRemaining: Int = 0
+    @Published var successfulReferrals: Int = 0
+
+    private static let kCode = "Referral.Code"
+    private static let kSuccess = "Referral.SuccessCount"
+    private static let kExpiry = "Referral.BonusExpiry"
+    private static let kBonusPerReferral = 3 // days
+    private static let kMaxBonusDays = 30
+
+    init() {
+        self.referralCode = UserDefaults.standard.string(forKey: Self.kCode)
+        self.successfulReferrals = UserDefaults.standard.integer(forKey: Self.kSuccess)
+        recalcBonusDays()
+    }
+
+    func generateReferralCode(userId: String) -> String {
+        if let code = referralCode, !code.isEmpty { return code }
+        let suffix = String(userId.replacingOccurrences(of: "-", with: "").suffix(8)).uppercased()
+        let code = "NS-" + suffix
+        referralCode = code
+        return code
+    }
+
+    func redeemReferralCode(_ code: String) async throws {
+        let trimmed = code.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { throw NSError(domain: "Referral", code: -1, userInfo: [NSLocalizedDescriptionKey: "Enter a referral code."]) }
+        // Minimal validation: cannot redeem own code
+        if let own = referralCode, !own.isEmpty, own.caseInsensitiveCompare(trimmed) == .orderedSame {
+            throw NSError(domain: "Referral", code: -2, userInfo: [NSLocalizedDescriptionKey: "You can't redeem your own code."])
+        }
+        // Simulated backend: immediately grant bonus days
+        extendBonus(days: Self.kBonusPerReferral)
+    }
+
+    func hasActiveBonus() -> Bool {
+        if let expiry = bonusExpiry(), expiry > Date() { return true }
+        return false
+    }
+
+    func trackInvite(code: String) {
+        // When someone uses your code, increase success & extend bonus
+        successfulReferrals += 1
+        UserDefaults.standard.set(successfulReferrals, forKey: Self.kSuccess)
+        extendBonus(days: Self.kBonusPerReferral)
+    }
+
+    // Helpers
+    private func bonusExpiry() -> Date? {
+        if let ts = UserDefaults.standard.object(forKey: Self.kExpiry) as? TimeInterval {
+            return Date(timeIntervalSince1970: ts)
+        }
+        return nil
+    }
+
+    private func setBonusExpiry(_ date: Date) {
+        UserDefaults.standard.set(date.timeIntervalSince1970, forKey: Self.kExpiry)
+    }
+
+    private func extendBonus(days: Int) {
+        let now = Date()
+        let current = bonusExpiry() ?? now
+        let base = max(now, current)
+        let newExpiry = Calendar.current.date(byAdding: .day, value: days, to: base) ?? base
+        // Cap total bonus window
+        let maxExpiry = Calendar.current.date(byAdding: .day, value: Self.kMaxBonusDays, to: now) ?? newExpiry
+        let finalExpiry = min(newExpiry, maxExpiry)
+        setBonusExpiry(finalExpiry)
+        recalcBonusDays()
+    }
+
+    private func recalcBonusDays() {
+        if let expiry = bonusExpiry() {
+            let comps = Calendar.current.dateComponents([.day], from: Date(), to: expiry)
+            bonusDaysRemaining = max(0, comps.day ?? 0)
+        } else {
+            bonusDaysRemaining = 0
+        }
+    }
+}
+
 // MARK: - [Environment Keys remain the same]
 
 private struct TemplateManagerKey: EnvironmentKey {
@@ -1641,6 +1745,7 @@ struct NeurospLITApp: App {
     @StateObject private var subscriptionManager = SubscriptionManager()
     @StateObject private var templateManager = TemplateManager()
     @StateObject private var apiService = APIService()
+    @StateObject private var referralManager = ReferralManager()
     
     #if DEBUG
     @State private var showDebugInfoAlert: Bool = false
@@ -1676,9 +1781,11 @@ struct NeurospLITApp: App {
                 .environment(\.templateManager, templateManager)
                 .environment(\.subscriptionManager, subscriptionManager)
                 .environment(\.apiService, apiService)
+                .environment(\.referralManager, referralManager)
                 .preferredColorScheme(.dark)
                 .task {
                     // Update subscription status on launch
+                    subscriptionManager.referralManager = referralManager
                     await subscriptionManager.updateSubscriptionStatus()
                 }
                 .modifier(DiagnosticsGestureModifier())
@@ -3790,6 +3897,7 @@ struct ShareSheet: UIViewControllerRepresentable {
 
 struct SubscriptionView: View {
     @Environment(\.subscriptionManager) private var subscriptionManager
+    @Environment(\.referralManager) private var referralManager
     @Environment(\.dismiss) private var dismiss
     
     @State private var showError = false
@@ -3803,6 +3911,7 @@ struct SubscriptionView: View {
                     
                     if subscriptionManager.isSubscribed {
                         subscribedSection
+                        ReferralEntryLink()
                     } else {
                         subscriptionOfferSection
                     }
@@ -4076,6 +4185,80 @@ struct SubscriptionView: View {
             }
         }
         .disabled(subscriptionManager.isPurchasing)
+    }
+}
+
+// Entry to ReferralView (keeps SubscriptionView tidy)
+struct ReferralEntryLink: View {
+    @Environment(\.referralManager) private var referralManager
+    var body: some View {
+        NavigationLink(destination: ReferralView()) {
+            HStack {
+                Image(systemName: "gift.fill").foregroundColor(.pink)
+                VStack(alignment: .leading) {
+                    Text("Invite Friends, Earn Days")
+                        .font(.headline)
+                    Text("Your bonus days: \(referralManager.bonusDaysRemaining)")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                Spacer()
+                Image(systemName: "chevron.right").foregroundColor(.secondary)
+            }
+            .padding()
+            .background(Color.pink.opacity(0.15))
+            .cornerRadius(12)
+        }
+        .padding(.horizontal)
+    }
+}
+
+struct ReferralView: View {
+    @Environment(\.referralManager) private var referralManager
+    @Environment(\.dismiss) private var dismiss
+    @State private var shareSheetPresented = false
+    @State private var shareURL: URL? = nil
+
+    private var userId: String { UIDevice.current.identifierForVendor?.uuidString ?? UUID().uuidString }
+    private var code: String { referralManager.generateReferralCode(userId: userId) }
+
+    var body: some View {
+        Form {
+            Section(header: Text("Your Referral Code")) {
+                HStack {
+                    Text(code).font(.title3.monospaced())
+                    Spacer()
+                    Button(action: { UIPasteboard.general.string = code }) {
+                        Image(systemName: "doc.on.doc").foregroundColor(.blue)
+                    }
+                }
+            }
+            Section(header: Text("Progress")) {
+                HStack { Text("Successful Referrals"); Spacer(); Text("\(referralManager.successfulReferrals)").bold() }
+                HStack { Text("Bonus Days Remaining"); Spacer(); Text("\(referralManager.bonusDaysRemaining)").bold() }
+            }
+            Section {
+                Button {
+                    share(code: code)
+                } label: {
+                    Label("Share Invite", systemImage: "square.and.arrow.up")
+                }
+            } footer: {
+                Text("Each friend who signs up gives you \(3) bonus days, up to \(30) days.")
+            }
+        }
+        .navigationTitle("Refer a Friend")
+        .sheet(isPresented: $shareSheetPresented) {
+            if let url = shareURL { ShareSheet(url: url) }
+        }
+    }
+
+    private func share(code: String) {
+        let message = "Join me on NeurospLIT! Use my referral code \(code) to try Pro free: https://neuraldraft.net/neurosplit"
+        let fileURL = FileManager.default.temporaryDirectory.appendingPathComponent("invite.txt")
+        try? message.write(to: fileURL, atomically: true, encoding: .utf8)
+        self.shareURL = fileURL
+        self.shareSheetPresented = true
     }
 }
 
