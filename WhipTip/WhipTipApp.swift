@@ -507,6 +507,14 @@ struct MockProduct: Identifiable {
 // MARK: - [Previous Errors section remains unchanged]
 // CLEANED: Logic from Models/Errors.swift now merged into monolith.
 
+struct AppError: LocalizedError, Identifiable {
+    let id = UUID()
+    let title: String
+    let message: String
+    let recoveryAction: (() -> Void)?
+    var errorDescription: String? { message }
+}
+
 enum APIError: LocalizedError {
     case invalidURL
     case noInternetConnection
@@ -517,6 +525,11 @@ enum APIError: LocalizedError {
     case unknown(Error)
     case networkError(Int)
     case missingCredentials
+    case unauthorized
+    case forbidden
+    case throttled
+    case serviceUnavailable
+    case circuitOpen
     
     var errorDescription: String? {
         switch self {
@@ -529,6 +542,11 @@ enum APIError: LocalizedError {
         case .networkError(let code): return "Network error (HTTP \(code))"
         case .unknown(let error): return "An unexpected error occurred: \(error.localizedDescription)"
         case .missingCredentials: return "DeepSeek API key missing. Add DEEPSEEK_API_KEY to Info.plist."
+        case .unauthorized: return "Unauthorized. Please verify your API key."
+        case .forbidden: return "Access forbidden. Your key may not have access to this resource."
+        case .throttled: return "You're sending requests too quickly. Please wait and try again."
+        case .serviceUnavailable: return "Service temporarily unavailable. Please try again shortly."
+        case .circuitOpen: return "Network temporarily disabled due to repeated failures. Retrying soon."
         }
     }
 }
@@ -1082,9 +1100,16 @@ class APIService: ObservableObject {
     @Published var showOfflineAlert = false
     @Published var showMissingKeyAlert = false
     @Published var lastStatusMessage: String = "Idle"
+    @Published var appError: AppError?
+    @Published var currentToast: ToastItem?
     
     private let session: URLSession
     private let networkMonitor = NetworkMonitor()
+    // Circuit breaker
+    private var consecutiveFailures = 0
+    private var breakerOpenUntil: Date?
+    private let failureThreshold = 3
+    private let breakerCooldown: TimeInterval = 15
     // CLEANED
     #if DEBUG
     private var __testBundleKey: String? = nil
@@ -1204,6 +1229,136 @@ class APIService: ObservableObject {
  
     enum StreamPiece { case token(String); case done }
 
+    // MARK: - Retry/backoff helpers
+    private func isCircuitOpen() -> Bool {
+        if let until = breakerOpenUntil { return Date() < until }
+        return false
+    }
+
+    private func markSuccess() {
+        consecutiveFailures = 0
+        breakerOpenUntil = nil
+    }
+
+    private func markFailure(transient: Bool) {
+        guard transient else { return }
+        consecutiveFailures += 1
+        if consecutiveFailures >= failureThreshold {
+            breakerOpenUntil = Date().addingTimeInterval(breakerCooldown)
+            showToast(title: "Network Paused", message: "Multiple failures detected. Pausing requests for a moment…", kind: .warning)
+        }
+    }
+
+    private func backoffDelay(for attempt: Int, base: Double = 0.8, cap: Double = 8.0) -> UInt64 {
+        let expo = min(cap, base * pow(2.0, Double(attempt)))
+        let jitter = Double.random(in: 0...0.25)
+        let seconds = expo + jitter
+        return UInt64(seconds * 1_000_000_000)
+    }
+
+    private func classifyHTTP(_ status: Int) -> (APIError, Bool) {
+        switch status {
+        case 401: return (.unauthorized, false)
+        case 403: return (.forbidden, false)
+        case 408: return (.requestTimeout, true)
+        case 429: return (.throttled, true)
+        case 500...502: return (.serverError(status), true)
+        case 503...504: return (.serviceUnavailable, true)
+        default:
+            if 400..<500 ~= status { return (.networkError(status), false) }
+            if 500..<600 ~= status { return (.serverError(status), true) }
+            return (.invalidResponse, true)
+        }
+    }
+
+    private func dataWithRetry(_ request: URLRequest, maxRetries: Int = 3) async throws -> (Data, URLResponse) {
+        if isCircuitOpen() {
+            lastStatusMessage = "Circuit open"
+            throw APIError.circuitOpen
+        }
+        var lastError: Error?
+        for attempt in 0...maxRetries {
+            do {
+                let (data, response) = try await session.data(for: request)
+                if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
+                    let (mapped, transient) = classifyHTTP(http.statusCode)
+                    lastError = mapped
+                    markFailure(transient: transient)
+                    if attempt < maxRetries && transient {
+                        try await Task.sleep(nanoseconds: backoffDelay(for: attempt))
+                        continue
+                    }
+                    throw mapped
+                }
+                markSuccess()
+                return (data, response)
+            } catch {
+                lastError = error
+                let ns = error as NSError
+                let transient = error.isNetworkError || ns.code == NSURLErrorTimedOut
+                markFailure(transient: transient)
+                if attempt < maxRetries && transient {
+                    try await Task.sleep(nanoseconds: backoffDelay(for: attempt))
+                    continue
+                }
+                throw error
+            }
+        }
+        throw lastError ?? APIError.requestTimeout
+    }
+
+    private func bytesWithRetry(_ request: URLRequest, maxRetries: Int = 3) async throws -> (URLSession.AsyncBytes, URLResponse) {
+        if isCircuitOpen() { throw APIError.circuitOpen }
+        var lastError: Error?
+        for attempt in 0...maxRetries {
+            do {
+                let (bytes, response) = try await session.bytes(for: request)
+                if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
+                    let (mapped, transient) = classifyHTTP(http.statusCode)
+                    lastError = mapped
+                    markFailure(transient: transient)
+                    if attempt < maxRetries && transient {
+                        try await Task.sleep(nanoseconds: backoffDelay(for: attempt))
+                        continue
+                    }
+                    throw mapped
+                }
+                markSuccess()
+                return (bytes, response)
+            } catch {
+                lastError = error
+                let ns = error as NSError
+                let transient = error.isNetworkError || ns.code == NSURLErrorTimedOut
+                markFailure(transient: transient)
+                if attempt < maxRetries && transient {
+                    try await Task.sleep(nanoseconds: backoffDelay(for: attempt))
+                    continue
+                }
+                throw error
+            }
+        }
+        throw lastError ?? APIError.requestTimeout
+    }
+
+    // MARK: - Toasts
+    struct ToastItem: Identifiable {
+        enum Kind { case info, success, warning, error }
+        let id = UUID()
+        let title: String
+        let message: String
+        let kind: Kind
+        let duration: TimeInterval
+    }
+
+    private func showToast(title: String, message: String, kind: ToastItem.Kind = .info, duration: TimeInterval = 3.0) {
+        currentToast = ToastItem(title: title, message: message, kind: kind, duration: duration)
+        let dismissAfter = duration
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: UInt64(dismissAfter * 1_000_000_000))
+            if self.currentToast?.title == title { self.currentToast = nil }
+        }
+    }
+
     /// Unified non-stream request returning full content
     /// Note: For streaming use `streamChat(model:messages:)`.
     private func buildRequest(model: String, messages: [ChatMessageDTO], stream: Bool) throws -> URLRequest {
@@ -1238,17 +1393,10 @@ class APIService: ObservableObject {
                 print("[DEBUG] DeepSeek request: model=\(model), stream=false, messages=\(messages.count), userMsgs=\(userCount)")
             }
             #endif
-            let (data, response) = try await session.data(for: request)
+            let (data, response) = try await dataWithRetry(request)
             if let http = response as? HTTPURLResponse {
                 lastStatusMessage = "HTTP \(http.statusCode)"
-                guard 200..<300 ~= http.statusCode else {
-                    let preview = String((String(data: data, encoding: .utf8) ?? "").prefix(200))
-                    print("[NeurospLIT] Server error (\(http.statusCode)): \(preview)")
-                    throw APIError.serverError(http.statusCode)
-                }
-            } else {
-                lastStatusMessage = "Success"
-            }
+            } else { lastStatusMessage = "Success" }
             let decoded = try JSONDecoder().decode(ChatResponseDTO.self, from: data)
             guard let content = decoded.choices.first?.message.content else { throw APIError.invalidResponse }
             #if DEBUG
@@ -1260,6 +1408,7 @@ class APIService: ObservableObject {
             return content
         } catch {
             lastStatusMessage = "Error: \(error.localizedDescription)"
+            presentUserFacingErrorIfNeeded(error)
             throw error
         }
     }
@@ -1275,13 +1424,8 @@ class APIService: ObservableObject {
                 print("[DEBUG] DeepSeek streaming request: model=\(model), stream=true, messages=\(messages.count), userMsgs=\(userCount)")
             }
             #endif
-            let (bytes, response) = try await session.bytes(for: request)
-            if let http = response as? HTTPURLResponse {
-                lastStatusMessage = "HTTP \(http.statusCode)"
-                guard 200..<300 ~= http.statusCode else { throw APIError.serverError(http.statusCode) }
-            } else {
-                lastStatusMessage = "Success"
-            }
+            let (bytes, response) = try await bytesWithRetry(request)
+            if let http = response as? HTTPURLResponse { lastStatusMessage = "HTTP \(http.statusCode)" } else { lastStatusMessage = "Success" }
             return AsyncStream { continuation in
                 let task = Task {
                     do {
@@ -1312,6 +1456,7 @@ class APIService: ObservableObject {
             }
         } catch {
             lastStatusMessage = "Error: \(error.localizedDescription)"
+            presentUserFacingErrorIfNeeded(error)
             throw error
         }
     }
@@ -1355,6 +1500,31 @@ class APIService: ObservableObject {
             template: turnNumber >= 5 ? createSampleTemplate() : nil,
             suggestedQuestions: turnNumber < 5 ? ["We pool everything", "Each person keeps their own"] : nil
         )
+    }
+
+    private func presentUserFacingErrorIfNeeded(_ error: Error) {
+        switch error {
+        case APIError.missingCredentials:
+            appError = AppError(
+                title: "Missing API Key",
+                message: "Add your DeepSeek API key to continue.",
+                recoveryAction: { [weak self] in self?.showMissingKeyAlert = true }
+            )
+        case APIError.unauthorized:
+            appError = AppError(
+                title: "Unauthorized",
+                message: "Your API key is invalid or expired.",
+                recoveryAction: { [weak self] in self?.showMissingKeyAlert = true }
+            )
+        case APIError.throttled:
+            showToast(title: "Rate Limited", message: "Server asked us to slow down. Retrying with backoff…", kind: .warning)
+        case APIError.serviceUnavailable:
+            showToast(title: "Service Unavailable", message: "We’ll retry automatically.", kind: .warning)
+        case APIError.circuitOpen:
+            showToast(title: "Temporarily Paused", message: "Waiting for network to stabilize…", kind: .warning)
+        default:
+            break
+        }
     }
     
     func sendWithRetry(
@@ -1599,6 +1769,21 @@ struct RootView: View {
             showDebugDashboard = true
         }
         #endif
+        .overlay(alignment: .top) {
+            if let toast = apiService.currentToast {
+                ToastView(item: toast)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                    .padding(.top, 8)
+            }
+        }
+        .alert(item: Binding(get: { apiService.appError }, set: { _ in apiService.appError = nil })) { appError in
+            Alert(
+                title: Text(appError.title),
+                message: Text(appError.message),
+                primaryButton: .default(Text("OK"), action: appError.recoveryAction),
+                secondaryButton: .cancel()
+            )
+        }
     }
 
     // [fix]: Centralized binding accessor for apiService.showOfflineAlert
@@ -1629,6 +1814,30 @@ struct RootView: View {
                 showOnboarding: $showOnboarding
             )
         }
+    }
+}
+
+// Lightweight toast UI
+struct ToastView: View {
+    let item: APIService.ToastItem
+    var bgColor: Color {
+        switch item.kind { case .info: return .blue.opacity(0.9); case .success: return .green.opacity(0.9); case .warning: return .orange.opacity(0.9); case .error: return .red.opacity(0.9) }
+    }
+    var body: some View {
+        VStack {
+            HStack(alignment: .top, spacing: 8) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(item.title).font(.headline)
+                    Text(item.message).font(.caption)
+                }
+                Spacer()
+            }
+            .padding(12)
+            .background(bgColor)
+            .cornerRadius(10)
+            .shadow(radius: 6)
+        }
+        .padding(.horizontal)
     }
 }
 
