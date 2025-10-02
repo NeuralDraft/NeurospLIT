@@ -988,6 +988,26 @@ class SubscriptionManager: ObservableObject {
             }
         }
     }
+
+    // MARK: - Entitlement Checks
+    /// Checks if the user currently has an active entitlement for the given product identifier.
+    /// Uses StoreKit2 currentEntitlements to validate active status.
+    func hasActiveEntitlement(_ entitlementId: String) async -> Bool {
+        for await result in Transaction.currentEntitlements {
+            switch result {
+            case .verified(let transaction):
+                if transaction.productID == entitlementId {
+                    if let expirationDate = transaction.expirationDate {
+                        return expirationDate > Date()
+                    }
+                    return true
+                }
+            case .unverified:
+                continue
+            }
+        }
+        return false
+    }
 }
 
 // MARK: - Streaming Chat Service & Token Providers
@@ -1163,6 +1183,11 @@ class APIService: ObservableObject {
     // CLEANED
     private var bundleAPIKey: String {
         (Bundle.main.object(forInfoDictionaryKey: "DEEPSEEK_API_KEY") as? String) ?? ""
+    }
+
+    // Anthropic Claude key from Info.plist
+    private var bundleClaudeAPIKey: String {
+        (Bundle.main.object(forInfoDictionaryKey: "CLAUDE_API_KEY") as? String) ?? ""
     }
     private let overrideUDKey = "DeepSeekAPIKeyOverride"
     private let baseURL = URL(string: "https://api.deepseek.com/v1/chat/completions")!
@@ -1546,6 +1571,11 @@ struct DiagnosticsView: View {
     @Environment(\.apiService) private var api
     @EnvironmentObject private var whipCoinsManager: WhipCoinsManager // CLEANED
     @Environment(\.subscriptionManager) private var subs
+    @StateObject private var claude = ClaudeService()
+    @State private var claudeOutput: String = ""
+    @State private var isLoadingClaude: Bool = false
+    @State private var showTransient: Bool = false
+    @State private var showUpgradeAlert: Bool = false
     @State private var keyPrefix: String = ""
     @State private var isConnected: Bool = true
     var body: some View {
@@ -1553,17 +1583,70 @@ struct DiagnosticsView: View {
             Text("Diagnostics").font(.title.bold())
             GroupBox(label: Label("Environment", systemImage: "gearshape")) {
                 VStack(alignment: .leading) {
-                    Text("API Key Present: \(keyPrefix.isEmpty ? "No" : "Yes (\(keyPrefix)…)")")
-                    Text("Subscription Active: \(subs.isSubscribed ? "Yes" : "No")")
+                    Text("API Key Present: \(keyPrefix.isEmpty ? \"No\" : \"Yes (\(keyPrefix)…)\")")
+                    Text("Subscription Active: \(subs.isSubscribed ? \"Yes\" : \"No\")")
                     Text("WhipCoins Balance: \(whipCoinsManager.whipCoins)") // CLEANED
                     Text("Last API Status: \(api.lastStatusMessage)")
                 }.frame(maxWidth: .infinity, alignment: .leading)
             }
+            GroupBox(label: Label("Claude Test", systemImage: "sparkles")) {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 12) {
+                        Button("Test Claude Echo") {
+                            Task {
+                                let entitled = await subs.hasActiveEntitlement("com.neurosplit.claudepro")
+                                guard entitled else {
+                                    showUpgradeAlert = true
+                                    return
+                                }
+                                isLoadingClaude = true
+                                defer { isLoadingClaude = false }
+                                do {
+                                    let reply = try await claude.sendMessage(
+                                        system: "You are a concise assistant.",
+                                        messages: [ClaudeMessage(role: "user", content: "Say hello from NeuroSplit test.")],
+                                        model: nil,
+                                        maxTokens: 128,
+                                        stream: false
+                                    )
+                                    claudeOutput = reply
+                            print("[Diagnostics] Claude reply: \(reply)")
+                                    withAnimation(.easeInOut(duration: 0.25)) { showTransient = true }
+                                    DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+                                        withAnimation(.easeInOut(duration: 0.25)) { showTransient = false }
+                                    }
+                                } catch {
+                                    claudeOutput = "Error: \(error)"
+                                    withAnimation(.easeInOut(duration: 0.25)) { showTransient = true }
+                                    DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+                                        withAnimation(.easeInOut(duration: 0.25)) { showTransient = false }
+                                    }
+                                }
+                            }
+                        }
+                        if isLoadingClaude {
+                            ProgressView().progressViewStyle(CircularProgressViewStyle())
+                        }
+                    }
+                    if showTransient {
+                        Text(claudeOutput.isEmpty ? "(no output)" : claudeOutput)
+                            .font(.callout)
+                            .foregroundColor(.primary)
+                            .lineLimit(4)
+                            .transition(.opacity)
+                    }
+                }
+            }
             Spacer()
         }
         .padding()
+        .alert("Upgrade Required", isPresented: $showUpgradeAlert) {
+            Button("OK") { }
+        } message: {
+            Text("Claude is available with an active subscription. Please upgrade to access.")
+        }
         .onAppear {
-            let k = (Bundle.main.infoDictionary?["DEEPSEEK_API_KEY"] as? String)?.trimmingCharacters(in:.whitespacesAndNewlines) ?? ""
+            let k = (Bundle.main.infoDictionary?["CLAUDE_API_KEY"] as? String)?.trimmingCharacters(in:.whitespacesAndNewlines) ?? ""
             keyPrefix = String(k.prefix(6))
         }
     }
