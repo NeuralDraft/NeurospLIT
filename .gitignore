@@ -1,32 +1,40 @@
-# Local environment file
+# Xcode
+.DS_Store
+*/build/*
+*.pbxuser
+!default.pbxuser
+*.mode1v3
+!default.mode1v3
+*.mode2v3
+!default.mode2v3
+*.perspectivev3
+!default.perspectivev3
+xcuserdata/
+*.moved-aside
+*.xccheckout
+*.xcscmblueprint
+
+# Secrets and API keys
+Configs/Secrets.xcconfig
 env
 
-# Secret configs (share example only)
-Configs/Secrets.xcconfig
-
-# macOS / Xcode
-.DS_Store
-build/
+# Build products
 DerivedData/
-xcuserdata/
-*.xcuserstate
-
-# Swift Package Manager
-.build/
-Package.resolved
+*.ipa
+*.dSYM.zip
+*.dSYM
 
 # CocoaPods
 Pods/
-*.xcworkspace
 
 # Carthage
-Carthage/Build/
+Carthage/Build
 
-# Fastlane
+# fastlane
 fastlane/report.xml
 fastlane/Preview.html
-fastlane/screenshots
+fastlane/screenshots/**/*.png
 fastlane/test_output
 
-# Logs
-*.log
+# Code Injection
+iOSInjectionProject/

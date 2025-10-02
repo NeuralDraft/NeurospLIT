@@ -19,6 +19,8 @@
 		A10000012F00000100000011 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000002F00000100000011 /* Models.swift */; };
 		A10000012F00000100000012 /* Errors.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000002F00000100000012 /* Errors.swift */; };
 		A10000012F00000100000013 /* Engine.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000002F00000100000013 /* Engine.swift */; };
+		A10000012F00000100000014 /* ClaudeServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000002F00000100000014 /* ClaudeServiceTests.swift */; };
+		A10000012F00000100000015 /* ClaudeTemplateExtractorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000002F00000100000015 /* ClaudeTemplateExtractorTests.swift */; };
 	// Removed: WhipCore in Frameworks (monolithic build)
 		// Monolith: removed test build file entries
 		// Removed C0APPINTEST build file (app file no longer compiled into tests)
@@ -39,6 +41,7 @@
 
 /* Begin PBXFileReference section */
 		8496B8992E7FCD10005270F1 /* NeurospLIT.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NeurospLIT.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		8496B8B02E7FCD12005270F1 /* NeurospLITTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = NeurospLITTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 	8496B8D02E7FE000005270F1 /* NeurospLITApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NeurospLITApp.swift; sourceTree = "<group>"; };
 	A1B2C3D4E5F6010000000001 /* Secrets.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = Secrets.xcconfig; path = "Configs/Secrets.xcconfig"; sourceTree = SOURCE_ROOT; };
 	A1B2C3D4E5F6010000000002 /* Secrets.example.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = Secrets.example.xcconfig; path = "Configs/Secrets.example.xcconfig"; sourceTree = SOURCE_ROOT; };
@@ -53,6 +56,8 @@
         A10000002F00000100000011 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Models.swift; path = "Sources/NeurospLITCore/Models.swift"; sourceTree = SOURCE_ROOT; };
         A10000002F00000100000012 /* Errors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Errors.swift; path = "Sources/NeurospLITCore/Errors.swift"; sourceTree = SOURCE_ROOT; };
         A10000002F00000100000013 /* Engine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Engine.swift; path = "Sources/NeurospLITCore/Engine.swift"; sourceTree = SOURCE_ROOT; };
+        A10000002F00000100000014 /* ClaudeServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ClaudeServiceTests.swift; path = "NeurospLITTests/ClaudeServiceTests.swift"; sourceTree = SOURCE_ROOT; };
+        A10000002F00000100000015 /* ClaudeTemplateExtractorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ClaudeTemplateExtractorTests.swift; path = "NeurospLITTests/ClaudeTemplateExtractorTests.swift"; sourceTree = SOURCE_ROOT; };
 	// Monolith: removed NeurospLITTests file references
 	// CLEANED: extraneous target file references removed
 
@@ -98,6 +103,29 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		8496B8AC2E7FCD12005270F1 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A10000012F00000100000014 /* ClaudeServiceTests.swift in Sources */,
+				A10000012F00000100000015 /* ClaudeTemplateExtractorTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		8496B8AD2E7FCD12005270F1 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		8496B8AE2E7FCD12005270F1 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		8496B8B52E7FCD12005270F1 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -122,6 +150,7 @@
 				8496B8CC2E7FD961005270F1 /* Preview Content */,
 				8496B89B2E7FCD10005270F1 /* NeurospLIT */,
 				A10000002F00000100000010 /* NeurospLITCore */,
+				A10000002F00000100000016 /* NeurospLITTests */,
 				// CLEANED: extraneous group reference removed
 				8496B89A2E7FCD10005270F1 /* Products */,
 			);
@@ -135,6 +164,15 @@
                 A10000002F00000100000011 /* Models.swift */,
                 A10000002F00000100000012 /* Errors.swift */,
                 A10000002F00000100000013 /* Engine.swift */,
+            );
+        };
+        A10000002F00000100000016 /* NeurospLITTests */ = {
+            isa = PBXGroup;
+            path = NeurospLITTests;
+            sourceTree = SOURCE_ROOT;
+            children = (
+                A10000002F00000100000014 /* ClaudeServiceTests.swift */,
+                A10000002F00000100000015 /* ClaudeTemplateExtractorTests.swift */,
             );
         };
 		A1B2C3D4E5F6010000000003 /* Configs */ = {
@@ -151,6 +189,7 @@
 			isa = PBXGroup;
 			children = (
 				8496B8992E7FCD10005270F1 /* NeurospLIT.app */,
+				8496B8B02E7FCD12005270F1 /* NeurospLITTests.xctest */,
 				// CLEANED: extraneous product reference removed
 			);
 			name = Products;
@@ -179,6 +218,24 @@
 			productType = "com.apple.product-type.application";
 			packageProductDependencies = (
 			);
+		};
+		8496B8AF2E7FCD12005270F1 /* NeurospLITTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 8496B8B82E7FCD12005270F1 /* Build configuration list for PBXNativeTarget "NeurospLITTests" */;
+			buildPhases = (
+				8496B8AC2E7FCD12005270F1 /* Sources */,
+				8496B8AD2E7FCD12005270F1 /* Frameworks */,
+				8496B8AE2E7FCD12005270F1 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				8496B8B22E7FCD12005270F1 /* PBXTargetDependency */,
+			);
+			name = NeurospLITTests;
+			productName = NeurospLITTests;
+			productReference = 8496B8B02E7FCD12005270F1 /* NeurospLITTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
 		};
 
 	/* End PBXNativeTarget section */
@@ -216,6 +273,7 @@
 			);
 			targets = (
 				8496B8982E7FCD10005270F1 /* NeurospLIT */,
+				8496B8AF2E7FCD12005270F1 /* NeurospLITTests */,
 			);
 		};
 /* End PBXProject section */
@@ -234,10 +292,11 @@
 			outputFileListPaths = (
 			);
 			outputPaths = (
+				"$(DERIVED_FILE_DIR)/api_key_injected",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "set -e\nPLIST=\"$TARGET_BUILD_DIR/$INFOPLIST_PATH\"\nKEY=\"$DEEPSEEK_API_KEY\"\nif [ -z \"$KEY\" ]; then\n  echo 'DEEPSEEK_API_KEY is empty; skipping Info.plist injection'\n  exit 0\nfi\nif [ ! -f \"$PLIST\" ]; then\n  echo \"Info.plist not found at $PLIST\" >&2\n  exit 1\nfi\n# Try to set, if it fails (key missing), add it\n/usr/libexec/PlistBuddy -c \"Set :DEEPSEEK_API_KEY $KEY\" \"$PLIST\" 2>/dev/null || /usr/libexec/PlistBuddy -c \"Add :DEEPSEEK_API_KEY string $KEY\" \"$PLIST\"\necho \"Injected DEEPSEEK_API_KEY into $PLIST\"\n";
+			shellScript = "set -e\nPLIST=\"$TARGET_BUILD_DIR/$INFOPLIST_PATH\"\nKEY=\"$DEEPSEEK_API_KEY\"\nif [ -z \"$KEY\" ]; then\n  echo 'DEEPSEEK_API_KEY is empty; skipping Info.plist injection'\n  exit 0\nfi\nif [ ! -f \"$PLIST\" ]; then\n  echo \"Info.plist not found at $PLIST\" >&2\n  exit 1\nfi\n# Try to set, if it fails (key missing), add it\n/usr/libexec/PlistBuddy -c \"Set :DEEPSEEK_API_KEY $KEY\" \"$PLIST\" 2>/dev/null || /usr/libexec/PlistBuddy -c \"Add :DEEPSEEK_API_KEY string $KEY\" \"$PLIST\"\necho \"Injected DEEPSEEK_API_KEY into $PLIST\"\n# Create dummy output file to satisfy Xcode dependency analysis\ntouch \"$(DERIVED_FILE_DIR)/api_key_injected\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -275,6 +334,11 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		8496B8B22E7FCD12005270F1 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 8496B8982E7FCD10005270F1 /* NeurospLIT */;
+			targetProxy = 8496B8AF2E7FCD12005270F1 /* PBXContainerItemProxy */;
+		};
 		// CLEANED: extraneous target dependencies removed
 /* End PBXTargetDependency section */
 
@@ -489,6 +553,15 @@
 			buildConfigurations = (
 				8496B8C32E7FCD12005270F1 /* Debug */,
 				8496B8C42E7FCD12005270F1 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		8496B8B82E7FCD12005270F1 /* Build configuration list for PBXNativeTarget "NeurospLITTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				8496B8B92E7FCD12005270F1 /* Debug */,
+				8496B8BA2E7FCD12005270F1 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
