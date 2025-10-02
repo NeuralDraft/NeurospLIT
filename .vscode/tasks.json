@@ -1,0 +1,35 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Build NeurospLIT (iPhone 16 Pro iOS 18.3)",
+			"type": "shell",
+			"command": "xcodebuild",
+			"args": [
+				"-scheme",
+				"NeurospLIT",
+				"-project",
+				"/Users/admin/Documents/project neurosplits/NeurospLIT/NeurospLIT.xcodeproj",
+				"-destination",
+				"platform=iOS Simulator,id=2A359B20-C628-4F65-AECF-E2383B80822E",
+				"build"
+			],
+			"problemMatcher": [
+				"$gcc"
+			],
+			"group": "build"
+		},
+		{
+			"label": "SwiftPM: build & test WhipCore",
+			"type": "shell",
+			"command": "swift",
+			"args": [
+				"test"
+			],
+			"problemMatcher": [
+				"$swiftc"
+			],
+			"group": "build"
+		}
+	]
+}

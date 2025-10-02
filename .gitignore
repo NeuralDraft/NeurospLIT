@@ -1,0 +1,32 @@
+# Local environment file
+env
+
+# Secret configs (share example only)
+Configs/Secrets.xcconfig
+
+# macOS / Xcode
+.DS_Store
+build/
+DerivedData/
+xcuserdata/
+*.xcuserstate
+
+# Swift Package Manager
+.build/
+Package.resolved
+
+# CocoaPods
+Pods/
+*.xcworkspace
+
+# Carthage
+Carthage/Build/
+
+# Fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots
+fastlane/test_output
+
+# Logs
+*.log
