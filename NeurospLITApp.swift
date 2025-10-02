@@ -1911,6 +1911,7 @@ struct OnboardingFlowView: View {
     @State private var showRawJSON = false
     @State private var showPricingReveal = false // CLEANED
     @State private var currentCreditsResult: CreditsResult? // CLEANED
+    @State private var showClaudeOnboarding = false
     
     var body: some View {
         VStack(spacing: 0) {
@@ -1937,6 +1938,9 @@ struct OnboardingFlowView: View {
                     onNeedWhipCoins: { handleWhipCoinsTopUp() }
                 )
             }
+        }
+        .sheet(isPresented: $showClaudeOnboarding) {
+            ClaudeOnboardingView(isPresented: $showClaudeOnboarding)
         }
         .onAppear {
             if whipCoinsManager.whipCoins == 0 {
@@ -2229,6 +2233,19 @@ struct OnboardingFlowView: View {
                 .foregroundColor(.gray)
                 
                 Spacer()
+                
+                Button(action: { showClaudeOnboarding = true }) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "sparkles")
+                        Text("Try Claude")
+                    }
+                    .font(.caption)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(Color.purple.opacity(0.2))
+                    .cornerRadius(16)
+                }
+                .foregroundColor(.purple)
             }
         }
         .padding()
