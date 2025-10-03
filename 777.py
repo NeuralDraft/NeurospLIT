@@ -7,7 +7,7 @@ import re
 # Setup
 repo_dir = os.getcwd()
 repo_name = os.path.basename(repo_dir)
-desktop_path = Path.home() / "Desktop"
+desktop_path = Path("C:/Users/Amirp/OneDrive/Desktop")  # ✅ Your actual desktop path
 
 # Snapshot counter
 counter_file = Path(repo_dir) / ".snapshot_count"
@@ -54,5 +54,3 @@ if len(matches) > 3:
             print(f"🗑️ Deleted old snapshot: {file_to_delete.name}")
         except Exception as e:
             print(f"⚠️ Failed to delete {file_to_delete.name}: {e}")
-
-

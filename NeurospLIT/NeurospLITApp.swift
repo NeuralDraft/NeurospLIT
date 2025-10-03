@@ -10,6 +10,15 @@ import StoreKit  // Added for StoreKit 2
 import PDFKit
 // Monolithic build: core engine is inlined; no external WhipCore import
 
+// MARK: - Diagnostics
+/// Lightweight debug logger used throughout the app. Strips in release builds.
+@inline(__always)
+func debugLog(_ message: @autoclosure () -> String) {
+    #if DEBUG
+    print(message())
+    #endif
+}
+
 // CLEANED: Logic from Utilities/Color+Hex.swift now merged into monolith.
 extension Color {
     init(hex: String) {
@@ -594,7 +603,8 @@ class TemplateManager: ObservableObject {
             templates = try JSONDecoder().decode([TipTemplate].self, from: data)
             lastError = nil
         } catch {
-            print("Failed to load templates: \(error)")
+            // Non-fatal: corrupted or missing saved state; reset and surface a friendly message.
+            debugLog("Failed to load templates: \(error)")
             templates = []
             lastError = "Failed to load saved templates. Starting fresh."
         }
@@ -611,7 +621,8 @@ class TemplateManager: ObservableObject {
             UserDefaults.standard.set(encoded, forKey: storageKey)
             lastError = nil
         } catch {
-            print("Failed to save templates: \(error)")
+            // Persist failure shouldn't crash; log and inform UI.
+            debugLog("Failed to save templates: \(error)")
             lastError = "Failed to save templates. Changes may not persist."
         }
     }
@@ -813,7 +824,7 @@ class SubscriptionManager: ObservableObject {
             await MainActor.run {
                 self.purchaseError = "Could not load subscription options. Please try again later."
                 self.isLoadingProducts = false
-                print("Failed to load products: \(error)")
+                debugLog("Failed to load products: \(error)")
             }
         }
     }
@@ -866,7 +877,7 @@ class SubscriptionManager: ObservableObject {
                     await MainActor.run {
                         self.purchaseError = "Could not verify purchase. Please contact support."
                         self.isPurchasing = false
-                        print("Transaction verification failed: \(error)")
+                        debugLog("Transaction verification failed: \(error)")
                     }
                 }
                 
@@ -894,7 +905,7 @@ class SubscriptionManager: ObservableObject {
             await MainActor.run {
                 self.purchaseError = "Purchase failed: \(error.localizedDescription)"
                 self.isPurchasing = false
-                print("Purchase error: \(error)")
+                debugLog("Purchase error: \(error)")
             }
         }
     }
@@ -949,7 +960,7 @@ class SubscriptionManager: ObservableObject {
                 }
                 
             case .unverified(_, let error):
-                print("Unverified transaction: \(error)")
+                debugLog("Unverified transaction: \(error)")
             }
         }
         
@@ -984,7 +995,7 @@ class SubscriptionManager: ObservableObject {
                     await transaction.finish()
                     
                 case .unverified(_, let error):
-                    print("Unverified transaction update: \(error)")
+                    debugLog("Unverified transaction update: \(error)")
                 }
             }
         }
@@ -1202,7 +1213,8 @@ class APIService: ObservableObject {
         let bundleKey = bundleAPIKey.trimmingCharacters(in: .whitespacesAndNewlines)
         let overrideKey = (UserDefaults.standard.string(forKey: overrideUDKey) ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
         let effective = effectiveAPIKey.trimmingCharacters(in: .whitespacesAndNewlines)
-        print("[APIService] Bundle key present? \(!bundleKey.isEmpty). Override present? \(!overrideKey.isEmpty). Effective present? \(!effective.isEmpty). Bundle: \(Bundle.main.bundleIdentifier ?? "(nil)")")
+        // Surface key presence in debug to help validate Info.plist configuration.
+        debugLog("[APIService] Bundle key present? \(!bundleKey.isEmpty). Override present? \(!overrideKey.isEmpty). Effective present? \(!effective.isEmpty). Bundle: \(Bundle.main.bundleIdentifier ?? "(nil)")")
         #endif
     }
     
@@ -1266,7 +1278,7 @@ class APIService: ObservableObject {
             #if DEBUG
             if UserDefaults.standard.bool(forKey: "DebugVerboseAPILogging") {
                 let userCount = messages.filter { $0.role == "user" }.count
-                print("[DEBUG] DeepSeek request: model=\(model), stream=false, messages=\(messages.count), userMsgs=\(userCount)")
+                debugLog("[DEBUG] DeepSeek request: model=\(model), stream=false, messages=\(messages.count), userMsgs=\(userCount)")
             }
             #endif
             let (data, response) = try await session.data(for: request)
@@ -1281,7 +1293,7 @@ class APIService: ObservableObject {
             #if DEBUG
             if UserDefaults.standard.bool(forKey: "DebugVerboseAPILogging") {
                 let preview = String(content.prefix(120))
-                print("[DEBUG] DeepSeek response (first 120 chars): \(preview)")
+                debugLog("[DEBUG] DeepSeek response (first 120 chars): \(preview)")
             }
             #endif
             return content
@@ -1311,7 +1323,7 @@ class APIService: ObservableObject {
             #if DEBUG
             if UserDefaults.standard.bool(forKey: "DebugVerboseAPILogging") {
                 let userCount = messages.filter { $0.role == "user" }.count
-                print("[DEBUG] DeepSeek streaming request: model=\(model), stream=true, messages=\(messages.count), userMsgs=\(userCount)")
+                debugLog("[DEBUG] DeepSeek streaming request: model=\(model), stream=true, messages=\(messages.count), userMsgs=\(userCount)")
             }
             #endif
             let (bytes, response) = try await session.bytes(for: request)
@@ -1523,13 +1535,13 @@ struct NeurospLITApp: App {
         let showAlertPref = (UserDefaults.standard.object(forKey: "DebugShowAPIKeyAlert") as? Bool) ?? true
         if !key.isEmpty {
             let prefix = String(key.prefix(6))
-            print("✅ DeepSeek key found: \(prefix)…")
+            debugLog("✅ DeepSeek key found: \(prefix)…")
             // Initialize alert state for Debug builds
             self._debugInfoMessage = State(initialValue: "✅ DeepSeek key found: \(prefix)…")
             // Show once if enabled in Debug settings
             self._showDebugInfoAlert = State(initialValue: showAlertPref)
         } else {
-            print("❌ DeepSeek key missing from Info.plist")
+            debugLog("❌ DeepSeek key missing from Info.plist")
             // Initialize alert state for Debug builds
             self._debugInfoMessage = State(initialValue: "❌ DeepSeek key missing from Info.plist")
             // Show once if enabled in Debug settings
@@ -1611,7 +1623,7 @@ struct DiagnosticsView: View {
                                         stream: false
                                     )
                                     claudeOutput = reply
-                            print("[Diagnostics] Claude reply: \(reply)")
+                                    debugLog("[Diagnostics] Claude reply: \(reply)")
                                     withAnimation(.easeInOut(duration: 0.25)) { showTransient = true }
                                     DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
                                         withAnimation(.easeInOut(duration: 0.25)) { showTransient = false }
