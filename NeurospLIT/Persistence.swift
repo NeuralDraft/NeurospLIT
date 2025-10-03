@@ -1,6 +1,9 @@
-// Legacy scaffolding removed.
-// This file is intentionally minimal because the app has been consolidated into NeurospLITApp.swift.
-// All models, services (API/StoreKit), views, and calculation engine now live in `NeurospLITApp.swift`.
-// Keeping this stub avoids accidental reintroduction of duplicate symbols that break the build.
+// Persistence.swift
+// Data persistence utilities
+// Copyright © 2025 NeurospLIT. All rights reserved.
 
 import Foundation
+
+// This file is intentionally kept minimal.
+// All persistence logic has been consolidated into the respective manager classes
+// (TemplateManager, SubscriptionManager, etc.) in NeurospLITApp.swift

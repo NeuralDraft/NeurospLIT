@@ -1,11 +1,8 @@
-// Deprecated legacy helper file. All logic moved into NeurospLITApp.swift monolith.
-<<<<<<< Current (Your changes)
-<<<<<<< Current (Your changes)
-=======
-// Keeping this file to avoid breaking existing references from tests or previews.
-// Please prefer using the utilities defined inside NeurospLITApp.swift.
->>>>>>> Incoming (Background Agent changes)
-=======
-// Keeping this file to avoid breaking existing references from tests or previews.
-// Please prefer using the utilities defined inside NeurospLITApp.swift.
->>>>>>> Incoming (Background Agent changes)
+// TemplateUtilities.swift
+// Template utility functions
+// Copyright © 2025 NeurospLIT. All rights reserved.
+
+import Foundation
+
+// This file is intentionally kept minimal.
+// All template utility functions have been consolidated into NeurospLITApp.swift

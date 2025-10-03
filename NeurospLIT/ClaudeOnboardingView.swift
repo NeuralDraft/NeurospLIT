@@ -1,8 +1,12 @@
+// ClaudeOnboardingView.swift
+// Claude-powered onboarding experience for NeurospLIT
+// Copyright © 2025 NeurospLIT. All rights reserved.
+
 import SwiftUI
 import Foundation
 
-// MARK: - Chat Message Models
-struct ChatMessage: Identifiable, Codable {
+// MARK: - Chat Message for Claude Onboarding (different from API ChatMessage)
+struct ClaudeOnboardingMessage: Identifiable, Codable {
     let id = UUID()
     let role: MessageRole
     let content: String
@@ -30,7 +34,7 @@ struct TemplateDraft: Codable {
     
     init() {
         self.name = "New Template"
-        self.rules = TipRules(type: .equal, formula: "Equal split")
+        self.rules = TipRules(type: .equal, formula: "Equal split", offTheTop: nil, roleWeights: nil, customLogic: nil)
         self.participants = []
         self.displayConfig = DisplayConfig(
             primaryVisualization: "pie",
@@ -105,7 +109,7 @@ enum TemplateDecodingError: LocalizedError {
 // MARK: - Claude Onboarding View Model
 @MainActor
 class ClaudeOnboardingViewModel: ObservableObject {
-    @Published var messages: [ChatMessage] = []
+    @Published var messages: [ClaudeOnboardingMessage] = []
     @Published var currentInput: String = ""
     @Published var isProcessing: Bool = false
     @Published var templateDraft: TemplateDraft = TemplateDraft()
@@ -133,7 +137,7 @@ class ClaudeOnboardingViewModel: ObservableObject {
         "name": "Template Name",
         "createdDate": "2024-01-01T00:00:00Z",
         "rules": {
-            "type": "equal|hours|percentage|role_weighted|hybrid",
+            "type": "equal|hours|percentage|roleWeighted|hybrid",
             "formula": "Description or formula",
             "offTheTop": [{"role": "Role", "percentage": 10.0}],
             "roleWeights": {"role": 50.0},
@@ -158,7 +162,7 @@ class ClaudeOnboardingViewModel: ObservableObject {
     }
     
     private func startConversation() {
-        let welcomeMessage = ChatMessage(
+        let welcomeMessage = ClaudeOnboardingMessage(
             role: .claude,
             content: "Hi! I'm Claude, and I'm here to help you create a tip splitting template. Let's start by understanding your restaurant or business. What type of establishment are you working with?"
         )
@@ -168,7 +172,7 @@ class ClaudeOnboardingViewModel: ObservableObject {
     func sendMessage() {
         guard !currentInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
         
-        let userMessage = ChatMessage(role: .user, content: currentInput)
+        let userMessage = ClaudeOnboardingMessage(role: .user, content: currentInput)
         messages.append(userMessage)
         
         let input = currentInput
@@ -178,14 +182,16 @@ class ClaudeOnboardingViewModel: ObservableObject {
         
         Task {
             do {
-                let claudeMessages = messages.map { ClaudeMessage(role: $0.role.rawValue, content: $0.content) }
+                let claudeMessages = messages.map { 
+                    ClaudeMessage(role: $0.role.rawValue, content: $0.content) 
+                }
                 let response = try await claudeService.sendMessage(
                     system: systemPrompt,
                     messages: claudeMessages,
                     maxTokens: 512
                 )
                 
-                let claudeResponse = ChatMessage(role: .claude, content: response)
+                let claudeResponse = ClaudeOnboardingMessage(role: .claude, content: response)
                 await MainActor.run {
                     messages.append(claudeResponse)
                     isProcessing = false
@@ -207,7 +213,7 @@ class ClaudeOnboardingViewModel: ObservableObject {
             case .success(let template):
                 extractedTemplate = template
                 showUseTemplateButton = true
-                return // Use the extracted template instead of keyword parsing
+                return
             case .failure(let error):
                 errorMessage = error.localizedDescription
                 print("Failed to extract template from JSON: \(error)")
@@ -229,7 +235,7 @@ class ClaudeOnboardingViewModel: ObservableObject {
         }
         
         // Extract participant names if mentioned
-        let participantKeywords = ["server", "waiter", "waitress", "bartender", "host", "manager", "cook", "chef"]
+        let participantKeywords = ["server", "waiter", "waitress", "bartender", "host", "manager", "cook", "chef", "busser", "runner"]
         for keyword in participantKeywords {
             if response.contains(keyword) && !templateDraft.participants.contains(where: { $0.role.lowercased().contains(keyword) }) {
                 let participant = Participant(
@@ -286,12 +292,12 @@ struct ClaudeOnboardingView: View {
                     ScrollView {
                         LazyVStack(spacing: 12) {
                             ForEach(viewModel.messages) { message in
-                                ChatBubbleView(message: message)
+                                ClaudeChatBubbleView(message: message)
                                     .id(message.id)
                             }
                             
                             if viewModel.isProcessing {
-                                TypingIndicatorView()
+                                ClaudeTypingIndicatorView()
                             }
                         }
                         .padding(.horizontal, 16)
@@ -316,7 +322,7 @@ struct ClaudeOnboardingView: View {
                     useTemplateButton
                 }
                 
-                // Error message for template extraction failures
+                // Error message
                 if let errorMessage = viewModel.errorMessage, !viewModel.showUseTemplateButton {
                     errorMessageView(errorMessage)
                 }
@@ -484,8 +490,8 @@ struct ClaudeOnboardingView: View {
 }
 
 // MARK: - Chat Bubble View
-struct ChatBubbleView: View {
-    let message: ChatMessage
+struct ClaudeChatBubbleView: View {
+    let message: ClaudeOnboardingMessage
     
     var body: some View {
         HStack {
@@ -521,7 +527,7 @@ struct ChatBubbleView: View {
 }
 
 // MARK: - Typing Indicator
-struct TypingIndicatorView: View {
+struct ClaudeTypingIndicatorView: View {
     @State private var animationOffset: CGFloat = 0
     
     var body: some View {
