@@ -38,3 +38,6 @@ fastlane/test_output
 
 # Code Injection
 iOSInjectionProject/
+
+# Local snapshot tracker
+.snapshot_count

@@ -7,6 +7,7 @@ import Combine
 import Network
 import UIKit
 import StoreKit  // Added for StoreKit 2
+import PDFKit
 // Monolithic build: core engine is inlined; no external WhipCore import
 
 // CLEANED: Logic from Utilities/Color+Hex.swift now merged into monolith.
@@ -961,8 +962,8 @@ class SubscriptionManager: ObservableObject {
                 self.subscriptionStatus = .none
             }
             
-            // TODO: Check for referral-based trial extension here
-            // if referralManager.hasActiveBonus() { isSubscribed = true }
+            // Referral-based trial extensions can be applied here if implemented in the future.
+            // Example: if referralManager.hasActiveBonus { self.subscriptionStatus = .trial }
         }
     }
     
@@ -3647,22 +3648,37 @@ struct ExportView: View {
     private func exportData() {
         isExporting = true
         Task {
-            let content = generatePreview()
-            // Decide extension based on selected format (PDF placeholder for future implementation)
-            let ext: String
-            switch exportFormat {
-            case .csv: ext = "csv"
-            case .text: ext = "txt"
-            case .pdf: ext = "pdf" // TODO: Implement real PDF rendering
-            }
-            let fileName = "NeurospLIT_\(UInt(Date().timeIntervalSince1970)).\(ext)"
-            let url = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
+            let timestamp = UInt(Date().timeIntervalSince1970)
+            let baseURL = FileManager.default.temporaryDirectory
             do {
-                try content.write(to: url, atomically: true, encoding: .utf8)
-                await MainActor.run {
-                    exportedFileURL = url
-                    showShareSheet = true
-                    isExporting = false
+                switch exportFormat {
+                case .csv:
+                    let content = generateCSV()
+                    let url = baseURL.appendingPathComponent("NeurospLIT_\(timestamp).csv")
+                    try content.write(to: url, atomically: true, encoding: .utf8)
+                    await MainActor.run {
+                        exportedFileURL = url
+                        showShareSheet = true
+                        isExporting = false
+                    }
+                case .text:
+                    let content = generateText()
+                    let url = baseURL.appendingPathComponent("NeurospLIT_\(timestamp).txt")
+                    try content.write(to: url, atomically: true, encoding: .utf8)
+                    await MainActor.run {
+                        exportedFileURL = url
+                        showShareSheet = true
+                        isExporting = false
+                    }
+                case .pdf:
+                    let pdfData = PDFExport.buildSplitPDF(splits: splits, tipAmount: tipAmount)
+                    let url = baseURL.appendingPathComponent("NeurospLIT_\(timestamp).pdf")
+                    try pdfData.write(to: url, options: .atomic)
+                    await MainActor.run {
+                        exportedFileURL = url
+                        showShareSheet = true
+                        isExporting = false
+                    }
                 }
             } catch {
                 await MainActor.run { isExporting = false }
@@ -3679,6 +3695,48 @@ struct ShareSheet: UIViewControllerRepresentable {
     }
     
     func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
+}
+
+// MARK: - Minimal PDF Exporter
+
+enum PDFExport {
+    static func buildSplitPDF(splits: [Participant], tipAmount: Double) -> Data {
+        let pageRect = CGRect(x: 0, y: 0, width: 612, height: 792) // US Letter
+        let renderer = UIGraphicsPDFRenderer(bounds: pageRect)
+        let data = renderer.pdfData { ctx in
+            ctx.beginPage()
+            let titleAttributes: [NSAttributedString.Key: Any] = [
+                .font: UIFont.boldSystemFont(ofSize: 20)
+            ]
+            let bodyAttributes: [NSAttributedString.Key: Any] = [
+                .font: UIFont.monospacedSystemFont(ofSize: 12, weight: .regular)
+            ]
+            let title = "NeurospLIT – Tip Split"
+            title.draw(at: CGPoint(x: 48, y: 48), withAttributes: titleAttributes)
+            let totalLine = "Total: \(tipAmount.currencyFormatted())"
+            totalLine.draw(at: CGPoint(x: 48, y: 80), withAttributes: bodyAttributes)
+
+            var y = CGFloat(120)
+            let header = String(format: "%-20@ %-14@ %-12@", "Name" as NSString, "Role" as NSString, "Amount" as NSString)
+            (header as NSString).draw(at: CGPoint(x: 48, y: y), withAttributes: bodyAttributes)
+            y += 18
+            (String(repeating: "-", count: 52) as NSString).draw(at: CGPoint(x: 48, y: y), withAttributes: bodyAttributes)
+            y += 18
+            for split in splits {
+                let name = split.name
+                let role = split.role
+                let amount = (split.calculatedAmount ?? 0).currencyFormatted()
+                let line = String(format: "%-20@ %-14@ %-12@", name as NSString, role as NSString, amount as NSString)
+                (line as NSString).draw(at: CGPoint(x: 48, y: y), withAttributes: bodyAttributes)
+                y += 16
+                if y > pageRect.height - 64 {
+                    ctx.beginPage()
+                    y = 48
+                }
+            }
+        }
+        return data
+    }
 }
 
 // MARK: - Subscription View (UPDATED with StoreKit 2)
@@ -4009,7 +4067,7 @@ struct PieSlice: View {
     }
 }
 
-// TODO: Integrate referral system for 7-day trial override
+// Referral system hook: integrate a validated referral-based trial override here if desired.
 // - Check ReferralManager.hasActiveBonus() in subscription gating
 // - Add referral code redemption UI in onboarding flow
 // - Wire up inviteCoworker() action for Pro subscribers
