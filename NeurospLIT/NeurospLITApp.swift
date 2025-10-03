@@ -9,6 +9,27 @@ import UIKit
 import StoreKit  // Added for StoreKit 2
 // Monolithic build: core engine is inlined; no external WhipCore import
 
+// MARK: - Referral Manager (lightweight, on-device)
+final class ReferralManager {
+    static let shared = ReferralManager()
+    private let bonusExpiryKey = "ReferralBonusExpiry"
+    private init() {}
+
+    func hasActiveBonus(now: Date = Date()) -> Bool {
+        guard let expiry = UserDefaults.standard.object(forKey: bonusExpiryKey) as? Date else { return false }
+        return expiry > now
+    }
+
+    func grantBonus(days: Int) {
+        let expiry = Calendar.current.date(byAdding: .day, value: max(1, days), to: Date())
+        if let expiry { UserDefaults.standard.set(expiry, forKey: bonusExpiryKey) }
+    }
+
+    func clearBonus() {
+        UserDefaults.standard.removeObject(forKey: bonusExpiryKey)
+    }
+}
+
 // CLEANED: Logic from Utilities/Color+Hex.swift now merged into monolith.
 extension Color {
     init(hex: String) {
@@ -961,8 +982,12 @@ class SubscriptionManager: ObservableObject {
                 self.subscriptionStatus = .none
             }
             
-            // TODO: Check for referral-based trial extension here
-            // if referralManager.hasActiveBonus() { isSubscribed = true }
+            // Referral-based trial extension integration
+            // If the user has an active referral bonus, grant temporary trial access.
+            if !self.isSubscribed, ReferralManager.shared.hasActiveBonus() {
+                self.isSubscribed = true
+                self.subscriptionStatus = .trial
+            }
         }
     }
     
@@ -3647,27 +3672,61 @@ struct ExportView: View {
     private func exportData() {
         isExporting = true
         Task {
-            let content = generatePreview()
-            // Decide extension based on selected format (PDF placeholder for future implementation)
-            let ext: String
-            switch exportFormat {
-            case .csv: ext = "csv"
-            case .text: ext = "txt"
-            case .pdf: ext = "pdf" // TODO: Implement real PDF rendering
-            }
-            let fileName = "NeurospLIT_\(UInt(Date().timeIntervalSince1970)).\(ext)"
-            let url = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
+            let fileNameBase = "NeurospLIT_\(UInt(Date().timeIntervalSince1970))"
+            let tempDir = FileManager.default.temporaryDirectory
             do {
-                try content.write(to: url, atomically: true, encoding: .utf8)
-                await MainActor.run {
-                    exportedFileURL = url
-                    showShareSheet = true
-                    isExporting = false
+                switch exportFormat {
+                case .csv:
+                    let url = tempDir.appendingPathComponent("\(fileNameBase).csv")
+                    try generateCSV().write(to: url, atomically: true, encoding: .utf8)
+                    await MainActor.run {
+                        exportedFileURL = url
+                        showShareSheet = true
+                        isExporting = false
+                    }
+                case .text:
+                    let url = tempDir.appendingPathComponent("\(fileNameBase).txt")
+                    try generateText().write(to: url, atomically: true, encoding: .utf8)
+                    await MainActor.run {
+                        exportedFileURL = url
+                        showShareSheet = true
+                        isExporting = false
+                    }
+                case .pdf:
+                    let url = tempDir.appendingPathComponent("\(fileNameBase).pdf")
+                    let data = try await generatePDFData()
+                    try data.write(to: url, options: .atomic)
+                    await MainActor.run {
+                        exportedFileURL = url
+                        showShareSheet = true
+                        isExporting = false
+                    }
                 }
             } catch {
                 await MainActor.run { isExporting = false }
             }
         }
+    }
+
+    private func generatePDFData() async throws -> Data {
+        // Simple PDF using UIKit renderer for a consistent snapshot of the text export
+        let text = generateText()
+        let pageRect = CGRect(x: 0, y: 0, width: 612, height: 792) // US Letter @ 72 dpi
+        let format = UIGraphicsPDFRendererFormat()
+        let renderer = UIGraphicsPDFRenderer(bounds: pageRect, format: format)
+        let data = renderer.pdfData { ctx in
+            ctx.beginPage()
+            let paragraph = NSMutableParagraphStyle()
+            paragraph.lineBreakMode = .byWordWrapping
+            paragraph.alignment = .left
+            let attrs: [NSAttributedString.Key: Any] = [
+                .font: UIFont.monospacedSystemFont(ofSize: 12, weight: .regular),
+                .paragraphStyle: paragraph
+            ]
+            let insetRect = pageRect.insetBy(dx: 24, dy: 24)
+            (text as NSString).draw(in: insetRect, withAttributes: attrs)
+        }
+        return data
     }
 }
 
