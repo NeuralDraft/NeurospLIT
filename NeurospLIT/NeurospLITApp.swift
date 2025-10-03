@@ -7,16 +7,27 @@ import Combine
 import Network
 import UIKit
 import StoreKit  // Added for StoreKit 2
-import PDFKit
 // Monolithic build: core engine is inlined; no external WhipCore import
 
-// MARK: - Diagnostics
-/// Lightweight debug logger used throughout the app. Strips in release builds.
-@inline(__always)
-func debugLog(_ message: @autoclosure () -> String) {
-    #if DEBUG
-    print(message())
-    #endif
+// MARK: - Referral Manager (lightweight, on-device)
+final class ReferralManager {
+    static let shared = ReferralManager()
+    private let bonusExpiryKey = "ReferralBonusExpiry"
+    private init() {}
+
+    func hasActiveBonus(now: Date = Date()) -> Bool {
+        guard let expiry = UserDefaults.standard.object(forKey: bonusExpiryKey) as? Date else { return false }
+        return expiry > now
+    }
+
+    func grantBonus(days: Int) {
+        let expiry = Calendar.current.date(byAdding: .day, value: max(1, days), to: Date())
+        if let expiry { UserDefaults.standard.set(expiry, forKey: bonusExpiryKey) }
+    }
+
+    func clearBonus() {
+        UserDefaults.standard.removeObject(forKey: bonusExpiryKey)
+    }
 }
 
 // CLEANED: Logic from Utilities/Color+Hex.swift now merged into monolith.
@@ -603,8 +614,7 @@ class TemplateManager: ObservableObject {
             templates = try JSONDecoder().decode([TipTemplate].self, from: data)
             lastError = nil
         } catch {
-            // Non-fatal: corrupted or missing saved state; reset and surface a friendly message.
-            debugLog("Failed to load templates: \(error)")
+            print("Failed to load templates: \(error)")
             templates = []
             lastError = "Failed to load saved templates. Starting fresh."
         }
@@ -621,8 +631,7 @@ class TemplateManager: ObservableObject {
             UserDefaults.standard.set(encoded, forKey: storageKey)
             lastError = nil
         } catch {
-            // Persist failure shouldn't crash; log and inform UI.
-            debugLog("Failed to save templates: \(error)")
+            print("Failed to save templates: \(error)")
             lastError = "Failed to save templates. Changes may not persist."
         }
     }
@@ -824,7 +833,7 @@ class SubscriptionManager: ObservableObject {
             await MainActor.run {
                 self.purchaseError = "Could not load subscription options. Please try again later."
                 self.isLoadingProducts = false
-                debugLog("Failed to load products: \(error)")
+                print("Failed to load products: \(error)")
             }
         }
     }
@@ -877,7 +886,7 @@ class SubscriptionManager: ObservableObject {
                     await MainActor.run {
                         self.purchaseError = "Could not verify purchase. Please contact support."
                         self.isPurchasing = false
-                        debugLog("Transaction verification failed: \(error)")
+                        print("Transaction verification failed: \(error)")
                     }
                 }
                 
@@ -905,7 +914,7 @@ class SubscriptionManager: ObservableObject {
             await MainActor.run {
                 self.purchaseError = "Purchase failed: \(error.localizedDescription)"
                 self.isPurchasing = false
-                debugLog("Purchase error: \(error)")
+                print("Purchase error: \(error)")
             }
         }
     }
@@ -960,7 +969,7 @@ class SubscriptionManager: ObservableObject {
                 }
                 
             case .unverified(_, let error):
-                debugLog("Unverified transaction: \(error)")
+                print("Unverified transaction: \(error)")
             }
         }
         
@@ -973,8 +982,12 @@ class SubscriptionManager: ObservableObject {
                 self.subscriptionStatus = .none
             }
             
-            // Referral-based trial extensions can be applied here if implemented in the future.
-            // Example: if referralManager.hasActiveBonus { self.subscriptionStatus = .trial }
+            // Referral-based trial extension integration
+            // If the user has an active referral bonus, grant temporary trial access.
+            if !self.isSubscribed, ReferralManager.shared.hasActiveBonus() {
+                self.isSubscribed = true
+                self.subscriptionStatus = .trial
+            }
         }
     }
     
@@ -995,7 +1008,7 @@ class SubscriptionManager: ObservableObject {
                     await transaction.finish()
                     
                 case .unverified(_, let error):
-                    debugLog("Unverified transaction update: \(error)")
+                    print("Unverified transaction update: \(error)")
                 }
             }
         }
@@ -1213,8 +1226,7 @@ class APIService: ObservableObject {
         let bundleKey = bundleAPIKey.trimmingCharacters(in: .whitespacesAndNewlines)
         let overrideKey = (UserDefaults.standard.string(forKey: overrideUDKey) ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
         let effective = effectiveAPIKey.trimmingCharacters(in: .whitespacesAndNewlines)
-        // Surface key presence in debug to help validate Info.plist configuration.
-        debugLog("[APIService] Bundle key present? \(!bundleKey.isEmpty). Override present? \(!overrideKey.isEmpty). Effective present? \(!effective.isEmpty). Bundle: \(Bundle.main.bundleIdentifier ?? "(nil)")")
+        print("[APIService] Bundle key present? \(!bundleKey.isEmpty). Override present? \(!overrideKey.isEmpty). Effective present? \(!effective.isEmpty). Bundle: \(Bundle.main.bundleIdentifier ?? "(nil)")")
         #endif
     }
     
@@ -1278,7 +1290,7 @@ class APIService: ObservableObject {
             #if DEBUG
             if UserDefaults.standard.bool(forKey: "DebugVerboseAPILogging") {
                 let userCount = messages.filter { $0.role == "user" }.count
-                debugLog("[DEBUG] DeepSeek request: model=\(model), stream=false, messages=\(messages.count), userMsgs=\(userCount)")
+                print("[DEBUG] DeepSeek request: model=\(model), stream=false, messages=\(messages.count), userMsgs=\(userCount)")
             }
             #endif
             let (data, response) = try await session.data(for: request)
@@ -1293,7 +1305,7 @@ class APIService: ObservableObject {
             #if DEBUG
             if UserDefaults.standard.bool(forKey: "DebugVerboseAPILogging") {
                 let preview = String(content.prefix(120))
-                debugLog("[DEBUG] DeepSeek response (first 120 chars): \(preview)")
+                print("[DEBUG] DeepSeek response (first 120 chars): \(preview)")
             }
             #endif
             return content
@@ -1323,7 +1335,7 @@ class APIService: ObservableObject {
             #if DEBUG
             if UserDefaults.standard.bool(forKey: "DebugVerboseAPILogging") {
                 let userCount = messages.filter { $0.role == "user" }.count
-                debugLog("[DEBUG] DeepSeek streaming request: model=\(model), stream=true, messages=\(messages.count), userMsgs=\(userCount)")
+                print("[DEBUG] DeepSeek streaming request: model=\(model), stream=true, messages=\(messages.count), userMsgs=\(userCount)")
             }
             #endif
             let (bytes, response) = try await session.bytes(for: request)
@@ -1535,13 +1547,13 @@ struct NeurospLITApp: App {
         let showAlertPref = (UserDefaults.standard.object(forKey: "DebugShowAPIKeyAlert") as? Bool) ?? true
         if !key.isEmpty {
             let prefix = String(key.prefix(6))
-            debugLog("✅ DeepSeek key found: \(prefix)…")
+            print("✅ DeepSeek key found: \(prefix)…")
             // Initialize alert state for Debug builds
             self._debugInfoMessage = State(initialValue: "✅ DeepSeek key found: \(prefix)…")
             // Show once if enabled in Debug settings
             self._showDebugInfoAlert = State(initialValue: showAlertPref)
         } else {
-            debugLog("❌ DeepSeek key missing from Info.plist")
+            print("❌ DeepSeek key missing from Info.plist")
             // Initialize alert state for Debug builds
             self._debugInfoMessage = State(initialValue: "❌ DeepSeek key missing from Info.plist")
             // Show once if enabled in Debug settings
@@ -1623,7 +1635,7 @@ struct DiagnosticsView: View {
                                         stream: false
                                     )
                                     claudeOutput = reply
-                                    debugLog("[Diagnostics] Claude reply: \(reply)")
+                            print("[Diagnostics] Claude reply: \(reply)")
                                     withAnimation(.easeInOut(duration: 0.25)) { showTransient = true }
                                     DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
                                         withAnimation(.easeInOut(duration: 0.25)) { showTransient = false }
@@ -3660,32 +3672,30 @@ struct ExportView: View {
     private func exportData() {
         isExporting = true
         Task {
-            let timestamp = UInt(Date().timeIntervalSince1970)
-            let baseURL = FileManager.default.temporaryDirectory
+            let fileNameBase = "NeurospLIT_\(UInt(Date().timeIntervalSince1970))"
+            let tempDir = FileManager.default.temporaryDirectory
             do {
                 switch exportFormat {
                 case .csv:
-                    let content = generateCSV()
-                    let url = baseURL.appendingPathComponent("NeurospLIT_\(timestamp).csv")
-                    try content.write(to: url, atomically: true, encoding: .utf8)
+                    let url = tempDir.appendingPathComponent("\(fileNameBase).csv")
+                    try generateCSV().write(to: url, atomically: true, encoding: .utf8)
                     await MainActor.run {
                         exportedFileURL = url
                         showShareSheet = true
                         isExporting = false
                     }
                 case .text:
-                    let content = generateText()
-                    let url = baseURL.appendingPathComponent("NeurospLIT_\(timestamp).txt")
-                    try content.write(to: url, atomically: true, encoding: .utf8)
+                    let url = tempDir.appendingPathComponent("\(fileNameBase).txt")
+                    try generateText().write(to: url, atomically: true, encoding: .utf8)
                     await MainActor.run {
                         exportedFileURL = url
                         showShareSheet = true
                         isExporting = false
                     }
                 case .pdf:
-                    let pdfData = PDFExport.buildSplitPDF(splits: splits, tipAmount: tipAmount)
-                    let url = baseURL.appendingPathComponent("NeurospLIT_\(timestamp).pdf")
-                    try pdfData.write(to: url, options: .atomic)
+                    let url = tempDir.appendingPathComponent("\(fileNameBase).pdf")
+                    let data = try await generatePDFData()
+                    try data.write(to: url, options: .atomic)
                     await MainActor.run {
                         exportedFileURL = url
                         showShareSheet = true
@@ -3697,6 +3707,27 @@ struct ExportView: View {
             }
         }
     }
+
+    private func generatePDFData() async throws -> Data {
+        // Simple PDF using UIKit renderer for a consistent snapshot of the text export
+        let text = generateText()
+        let pageRect = CGRect(x: 0, y: 0, width: 612, height: 792) // US Letter @ 72 dpi
+        let format = UIGraphicsPDFRendererFormat()
+        let renderer = UIGraphicsPDFRenderer(bounds: pageRect, format: format)
+        let data = renderer.pdfData { ctx in
+            ctx.beginPage()
+            let paragraph = NSMutableParagraphStyle()
+            paragraph.lineBreakMode = .byWordWrapping
+            paragraph.alignment = .left
+            let attrs: [NSAttributedString.Key: Any] = [
+                .font: UIFont.monospacedSystemFont(ofSize: 12, weight: .regular),
+                .paragraphStyle: paragraph
+            ]
+            let insetRect = pageRect.insetBy(dx: 24, dy: 24)
+            (text as NSString).draw(in: insetRect, withAttributes: attrs)
+        }
+        return data
+    }
 }
 
 struct ShareSheet: UIViewControllerRepresentable {
@@ -3707,48 +3738,6 @@ struct ShareSheet: UIViewControllerRepresentable {
     }
     
     func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
-}
-
-// MARK: - Minimal PDF Exporter
-
-enum PDFExport {
-    static func buildSplitPDF(splits: [Participant], tipAmount: Double) -> Data {
-        let pageRect = CGRect(x: 0, y: 0, width: 612, height: 792) // US Letter
-        let renderer = UIGraphicsPDFRenderer(bounds: pageRect)
-        let data = renderer.pdfData { ctx in
-            ctx.beginPage()
-            let titleAttributes: [NSAttributedString.Key: Any] = [
-                .font: UIFont.boldSystemFont(ofSize: 20)
-            ]
-            let bodyAttributes: [NSAttributedString.Key: Any] = [
-                .font: UIFont.monospacedSystemFont(ofSize: 12, weight: .regular)
-            ]
-            let title = "NeurospLIT – Tip Split"
-            title.draw(at: CGPoint(x: 48, y: 48), withAttributes: titleAttributes)
-            let totalLine = "Total: \(tipAmount.currencyFormatted())"
-            totalLine.draw(at: CGPoint(x: 48, y: 80), withAttributes: bodyAttributes)
-
-            var y = CGFloat(120)
-            let header = String(format: "%-20@ %-14@ %-12@", "Name" as NSString, "Role" as NSString, "Amount" as NSString)
-            (header as NSString).draw(at: CGPoint(x: 48, y: y), withAttributes: bodyAttributes)
-            y += 18
-            (String(repeating: "-", count: 52) as NSString).draw(at: CGPoint(x: 48, y: y), withAttributes: bodyAttributes)
-            y += 18
-            for split in splits {
-                let name = split.name
-                let role = split.role
-                let amount = (split.calculatedAmount ?? 0).currencyFormatted()
-                let line = String(format: "%-20@ %-14@ %-12@", name as NSString, role as NSString, amount as NSString)
-                (line as NSString).draw(at: CGPoint(x: 48, y: y), withAttributes: bodyAttributes)
-                y += 16
-                if y > pageRect.height - 64 {
-                    ctx.beginPage()
-                    y = 48
-                }
-            }
-        }
-        return data
-    }
 }
 
 // MARK: - Subscription View (UPDATED with StoreKit 2)
@@ -4079,7 +4068,7 @@ struct PieSlice: View {
     }
 }
 
-// Referral system hook: integrate a validated referral-based trial override here if desired.
+// TODO: Integrate referral system for 7-day trial override
 // - Check ReferralManager.hasActiveBonus() in subscription gating
 // - Add referral code redemption UI in onboarding flow
 // - Wire up inviteCoworker() action for Pro subscribers
