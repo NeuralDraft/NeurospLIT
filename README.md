@@ -54,6 +54,7 @@ NeurospLIT_reconstructed (1)/
 - 📊 **Multiple Calculation Methods** - Equal, hours-based, percentage, role-weighted
 - 📈 **Visual Breakdowns** - Charts and detailed split views
 - 💾 **Template System** - Save and reuse your configurations
+- 📁 **Project Organization** - Group templates into projects for better organization
 - 📱 **iOS Native** - Built with SwiftUI for modern iOS
 
 ### Business Features
@@ -154,6 +155,7 @@ Comprehensive documentation is available in `Documentation/`:
 |----------|---------|
 | **MIGRATION_GUIDE.md** | Step-by-step migration from old structure |
 | **PROJECT_STRUCTURE.md** | Detailed structure documentation |
+| **PROJECT_FEATURE.md** | Project organization feature guide |
 | **APP_STORE_SUBMISSION_README.md** | App Store submission checklist |
 | **AUDIT_FIXES_COMPLETE.md** | Recent code quality improvements |
 | **PROJECT_REORGANIZATION_PLAN.md** | Reorganization rationale |
