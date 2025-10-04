@@ -3,76 +3,29 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 77;
+	objectVersion = 70;
 	objects = {
 
-	/* Begin PBXBuildFile section */
-			8496B8D12E7FE000005270F1 /* NeurospLITApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8496B8D02E7FE000005270F1 /* NeurospLITApp.swift */; };
-		A10000012F00000100000001 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000002F00000100000001 /* ContentView.swift */; };
-		A10000012F00000100000002 /* ClaudeService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000002F00000100000002 /* ClaudeService.swift */; };
-		A10000012F00000100000003 /* ClaudeOnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000002F00000100000003 /* ClaudeOnboardingView.swift */; };
-		A10000012F00000100000004 /* TemplateUtilities.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000002F00000100000004 /* TemplateUtilities.swift */; };
-		A10000012F00000100000005 /* EngineHarness.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000002F00000100000005 /* EngineHarness.swift */; };
-		A10000012F00000100000006 /* Persistence.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000002F00000100000006 /* Persistence.swift */; };
-		A10000012F00000100000007 /* MockURLProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000002F00000100000007 /* MockURLProtocol.swift */; };
-		A10000012F00000100000008 /* Dummy.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000002F00000100000008 /* Dummy.swift */; };
+/* Begin PBXBuildFile section */
 		A10000012F00000100000011 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000002F00000100000011 /* Models.swift */; };
 		A10000012F00000100000012 /* Errors.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000002F00000100000012 /* Errors.swift */; };
 		A10000012F00000100000013 /* Engine.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000002F00000100000013 /* Engine.swift */; };
-	// Removed: WhipCore in Frameworks (monolithic build)
-		// Monolith: removed test build file entries
-		// Removed C0APPINTEST build file (app file no longer compiled into tests)
-		// CLEANED: extraneous target build references removed
-
-	/* End PBXBuildFile section */
-
-/* Begin PBXContainerItemProxy section */
-		// CLEANED: extraneous target proxies removed
-/* End PBXContainerItemProxy section */
+/* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		8496B8992E7FCD10005270F1 /* NeurospLIT.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NeurospLIT.app; sourceTree = BUILT_PRODUCTS_DIR; };
-	8496B8D02E7FE000005270F1 /* NeurospLITApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NeurospLITApp.swift; sourceTree = "<group>"; };
-	A1B2C3D4E5F6010000000001 /* Secrets.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = Secrets.xcconfig; path = "Configs/Secrets.xcconfig"; sourceTree = SOURCE_ROOT; };
-	A1B2C3D4E5F6010000000002 /* Secrets.example.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = Secrets.example.xcconfig; path = "Configs/Secrets.example.xcconfig"; sourceTree = SOURCE_ROOT; };
-        A10000002F00000100000001 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
-        A10000002F00000100000002 /* ClaudeService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeService.swift; sourceTree = "<group>"; };
-        A10000002F00000100000003 /* ClaudeOnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeOnboardingView.swift; sourceTree = "<group>"; };
-        A10000002F00000100000004 /* TemplateUtilities.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TemplateUtilities.swift; sourceTree = "<group>"; };
-        A10000002F00000100000005 /* EngineHarness.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EngineHarness.swift; sourceTree = "<group>"; };
-        A10000002F00000100000006 /* Persistence.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Persistence.swift; sourceTree = "<group>"; };
-        A10000002F00000100000007 /* MockURLProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockURLProtocol.swift; sourceTree = "<group>"; };
-        A10000002F00000100000008 /* Dummy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Dummy.swift; sourceTree = "<group>"; };
-        A10000002F00000100000011 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Models.swift; path = "Sources/NeurospLITCore/Models.swift"; sourceTree = SOURCE_ROOT; };
-        A10000002F00000100000012 /* Errors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Errors.swift; path = "Sources/NeurospLITCore/Errors.swift"; sourceTree = SOURCE_ROOT; };
-        A10000002F00000100000013 /* Engine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Engine.swift; path = "Sources/NeurospLITCore/Engine.swift"; sourceTree = SOURCE_ROOT; };
-	// CLEANED: extraneous target file references removed
-
-
+		84B78DEA2E9126D300093AC8 /* Untitled.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Untitled.swift; sourceTree = "<group>"; };
+		A10000002F00000100000011 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Models.swift; path = Sources/NeurospLITCore/Models.swift; sourceTree = SOURCE_ROOT; };
+		A10000002F00000100000012 /* Errors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Errors.swift; path = Sources/NeurospLITCore/Errors.swift; sourceTree = SOURCE_ROOT; };
+		A10000002F00000100000013 /* Engine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Engine.swift; path = Sources/NeurospLITCore/Engine.swift; sourceTree = SOURCE_ROOT; };
+		A1B2C3D4E5F6010000000001 /* Secrets.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = Secrets.xcconfig; path = Configs/Secrets.xcconfig; sourceTree = SOURCE_ROOT; };
+		A1B2C3D4E5F6010000000002 /* Secrets.example.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = Secrets.example.xcconfig; path = Configs/Secrets.example.xcconfig; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		8496B89B2E7FCD10005270F1 /* NeurospLIT */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = NeurospLIT;
-			sourceTree = "<group>";
-			children = (
-				8496B8D02E7FE000005270F1 /* NeurospLITApp.swift */,
-				A10000002F00000100000001 /* ContentView.swift */,
-				A10000002F00000100000002 /* ClaudeService.swift */,
-				A10000002F00000100000003 /* ClaudeOnboardingView.swift */,
-				A10000002F00000100000004 /* TemplateUtilities.swift */,
-				A10000002F00000100000005 /* EngineHarness.swift */,
-				A10000002F00000100000006 /* Persistence.swift */,
-				A10000002F00000100000007 /* MockURLProtocol.swift */,
-				A10000002F00000100000008 /* Dummy.swift */,
-			);
-		};
-		8496B8CC2E7FD961005270F1 /* Preview Content */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = "Preview Content";
-			sourceTree = "<group>";
-		};
+		8496B89B2E7FCD10005270F1 /* NeurospLIT */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = NeurospLIT; sourceTree = "<group>"; };
+		8496B8CC2E7FD961005270F1 /* Preview Content */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = "Preview Content"; sourceTree = "<group>"; };
+		84B78DEB2E9126DC00093AC8 /* New Folder */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = "New Folder"; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -83,65 +36,49 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		8496B8AB2E7FCD12005270F1 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-		);
-		runOnlyForDeploymentPostprocessing = 0;
-	};
-	// CLEANED: extraneous target framework phase removed
 /* End PBXFrameworksBuildPhase section */
-
-	/* Begin XCLocalSwiftPackageReference section */
-	/* End XCLocalSwiftPackageReference section */
-
-	/* Begin XCSwiftPackageProductDependency section */
-	/* End XCSwiftPackageProductDependency section */
 
 /* Begin PBXGroup section */
 		8496B8902E7FCD0F005270F1 = {
 			isa = PBXGroup;
 			children = (
+				84B78DEA2E9126D300093AC8 /* Untitled.swift */,
 				A1B2C3D4E5F6010000000003 /* Configs */,
 				8496B8CC2E7FD961005270F1 /* Preview Content */,
-			8496B89B2E7FCD10005270F1 /* NeurospLIT */,
-			A10000002F00000100000010 /* NeurospLITCore */,
-			// CLEANED: extraneous group reference removed
+				8496B89B2E7FCD10005270F1 /* NeurospLIT */,
+				A10000002F00000100000010 /* Sources/NeurospLITCore */,
 				8496B89A2E7FCD10005270F1 /* Products */,
+				84B78DEB2E9126DC00093AC8 /* New Folder */,
 			);
 			sourceTree = "<group>";
-		};
-        A10000002F00000100000010 /* NeurospLITCore */ = {
-            isa = PBXGroup;
-            path = Sources/NeurospLITCore;
-            sourceTree = SOURCE_ROOT;
-            children = (
-                A10000002F00000100000011 /* Models.swift */,
-                A10000002F00000100000012 /* Errors.swift */,
-                A10000002F00000100000013 /* Engine.swift */,
-            );
-        };
-		A1B2C3D4E5F6010000000003 /* Configs */ = {
-			isa = PBXGroup;
-			name = Configs;
-			path = Configs;
-			sourceTree = SOURCE_ROOT;
-			children = (
-				A1B2C3D4E5F6010000000002 /* Secrets.example.xcconfig */,
-				A1B2C3D4E5F6010000000001 /* Secrets.xcconfig */,
-			);
 		};
 		8496B89A2E7FCD10005270F1 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-			8496B8992E7FCD10005270F1 /* NeurospLIT.app */,
-			// CLEANED: extraneous product reference removed
+				8496B8992E7FCD10005270F1 /* NeurospLIT.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
 		};
-		// CLEANED: extraneous group definition removed
+		A10000002F00000100000010 /* Sources/NeurospLITCore */ = {
+			isa = PBXGroup;
+			children = (
+				A10000002F00000100000011 /* Models.swift */,
+				A10000002F00000100000012 /* Errors.swift */,
+				A10000002F00000100000013 /* Engine.swift */,
+			);
+			path = Sources/NeurospLITCore;
+			sourceTree = SOURCE_ROOT;
+		};
+		A1B2C3D4E5F6010000000003 /* Configs */ = {
+			isa = PBXGroup;
+			children = (
+				A1B2C3D4E5F6010000000002 /* Secrets.example.xcconfig */,
+				A1B2C3D4E5F6010000000001 /* Secrets.xcconfig */,
+			);
+			path = Configs;
+			sourceTree = SOURCE_ROOT;
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -159,14 +96,13 @@
 			dependencies = (
 			);
 			name = NeurospLIT;
+			packageProductDependencies = (
+			);
 			productName = NeurospLIT;
 			productReference = 8496B8992E7FCD10005270F1 /* NeurospLIT.app */;
 			productType = "com.apple.product-type.application";
-			packageProductDependencies = (
-			);
 		};
-
-	/* End PBXNativeTarget section */
+/* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
 		8496B8912E7FCD0F005270F1 /* Project object */ = {
@@ -179,10 +115,6 @@
 					8496B8982E7FCD10005270F1 = {
 						CreatedOnToolsVersion = 15.0;
 					};
-					C0TESTTGT = {
-						CreatedOnToolsVersion = 15.0;
-						TestTargetID = 8496B8982E7FCD10005270F1;
-					};
 				};
 			};
 			buildConfigurationList = 8496B8942E7FCD10005270F1 /* Build configuration list for PBXProject "NeurospLIT" */;
@@ -194,16 +126,26 @@
 				Base,
 			);
 			mainGroup = 8496B8902E7FCD0F005270F1;
+			packageReferences = (
+			);
 			productRefGroup = 8496B89A2E7FCD10005270F1 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
-			packageReferences = (
+			targets = (
+				8496B8982E7FCD10005270F1 /* NeurospLIT */,
 			);
-		targets = (
-			8496B8982E7FCD10005270F1 /* NeurospLIT */,
-		);
 		};
 /* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		8496B8972E7FCD10005270F1 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
 		A1B2C3D4E5F6010000001000 /* Inject DEEPSEEK_API_KEY */ = {
@@ -227,46 +169,20 @@
 		};
 /* End PBXShellScriptBuildPhase section */
 
-/* Begin PBXResourcesBuildPhase section */
-		8496B8972E7FCD10005270F1 /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-/* End PBXResourcesBuildPhase section */
-
 /* Begin PBXSourcesBuildPhase section */
 		8496B8952E7FCD10005270F1 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				8496B8D12E7FE000005270F1 /* NeurospLITApp.swift in Sources */,
-				A10000012F00000100000001 /* ContentView.swift in Sources */,
-				A10000012F00000100000002 /* ClaudeService.swift in Sources */,
-				A10000012F00000100000003 /* ClaudeOnboardingView.swift in Sources */,
-				A10000012F00000100000004 /* TemplateUtilities.swift in Sources */,
-				A10000012F00000100000005 /* EngineHarness.swift in Sources */,
-				A10000012F00000100000006 /* Persistence.swift in Sources */,
-				A10000012F00000100000007 /* MockURLProtocol.swift in Sources */,
-				A10000012F00000100000008 /* Dummy.swift in Sources */,
 				A10000012F00000100000011 /* Models.swift in Sources */,
 				A10000012F00000100000012 /* Errors.swift in Sources */,
 				A10000012F00000100000013 /* Engine.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		// CLEANED: extraneous sources build phase removed
 /* End PBXSourcesBuildPhase section */
 
-/* Begin PBXTargetDependency section */
-		// CLEANED: extraneous target dependencies removed
-/* End PBXTargetDependency section */
-
 /* Begin XCBuildConfiguration section */
-	// CLEANED: extraneous build configurations removed
-		// Monolith: removed NeurospLITTests build configurations
 		8496B8C02E7FCD12005270F1 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -395,17 +311,14 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = R7KX4HNBFY;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "";
+				DEVELOPMENT_TEAM = R7KX4HNBFY;
 				ENABLE_PREVIEWS = YES;
-				SWIFT_EMIT_LOC_STRINGS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				// API key removed - now using KeychainService for secure storage
-				// INFOPLIST_FILE removed to rely on generated Info.plist and avoid duplicate copy
-				INFOPLIST_KEY_CFBundleDisplayName = "NeurospLIT";
-				INFOPLIST_KEY_LSRequiresIPhoneOS = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = NeurospLIT;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_LSRequiresIPhoneOS = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -431,17 +344,14 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = R7KX4HNBFY;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "";
+				DEVELOPMENT_TEAM = R7KX4HNBFY;
 				ENABLE_PREVIEWS = YES;
-				SWIFT_EMIT_LOC_STRINGS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				// API key removed - now using KeychainService for secure storage
-				// INFOPLIST_FILE removed to rely on generated Info.plist and avoid duplicate copy
-				INFOPLIST_KEY_CFBundleDisplayName = "NeurospLIT";
-				INFOPLIST_KEY_LSRequiresIPhoneOS = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = NeurospLIT;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_LSRequiresIPhoneOS = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -463,8 +373,6 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-	// CLEANED: extraneous configuration list removed
-		// Monolith: removed test configuration list
 		8496B8942E7FCD10005270F1 /* Build configuration list for PBXProject "NeurospLIT" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -480,9 +388,9 @@
 				8496B8C32E7FCD12005270F1 /* Debug */,
 				8496B8C42E7FCD12005270F1 /* Release */,
 			);
-		defaultConfigurationIsVisible = 0;
-		defaultConfigurationName = Release;
-	};
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 /* End XCConfigurationList section */
 	};
 	rootObject = 8496B8912E7FCD0F005270F1 /* Project object */;
