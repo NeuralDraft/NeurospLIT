@@ -1,5 +1,24 @@
 import Foundation
 
+public struct Project: Codable, Identifiable {
+    public var id = UUID()
+    public var name: String
+    public var description: String?
+    public var createdDate: Date
+    public var updatedDate: Date
+    public var color: String?
+    public var templateIds: [UUID]
+    
+    public init(id: UUID = UUID(), name: String, description: String? = nil, createdDate: Date = Date(), updatedDate: Date = Date(), color: String? = nil, templateIds: [UUID] = []) {
+        self.id = id
+        self.name = name
+        self.description = description
+        self.createdDate = createdDate
+        self.updatedDate = updatedDate
+        self.color = color
+        self.templateIds = templateIds
+    }
+}
 
 public struct TipTemplate: Codable, Identifiable {
     public var id = UUID()
@@ -8,13 +27,16 @@ public struct TipTemplate: Codable, Identifiable {
     public var rules: TipRules
     public var participants: [Participant]
     public var displayConfig: DisplayConfig
-    public init(id: UUID = UUID(), name: String, createdDate: Date, rules: TipRules, participants: [Participant], displayConfig: DisplayConfig) {
+    public var projectId: UUID?
+    
+    public init(id: UUID = UUID(), name: String, createdDate: Date, rules: TipRules, participants: [Participant], displayConfig: DisplayConfig, projectId: UUID? = nil) {
         self.id = id
         self.name = name
         self.createdDate = createdDate
         self.rules = rules
         self.participants = participants
         self.displayConfig = displayConfig
+        self.projectId = projectId
     }
 }
 
