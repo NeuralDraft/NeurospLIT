@@ -1,0 +1,91 @@
+Folder PATH listing for volume Windows
+Volume serial number is 4ED3-0463
+C:\USERS\AMIRP\ONEDRIVE\DESKTOP\NEUROSPLIT_RECONSTRUCTED (1)\NEUROSPLIT
++---Application
+|       NeurospLITApp.swift
+|       
++---Engine
+|       Engine.swift
+|       EngineHarness.swift
+|       
++---Models
+|   +---Domain
+|   |       Models.swift
+|   |       
+|   \---Supporting
+|           Errors.swift
+|           
++---Resources
+|   |   .gitignore
+|   |   
+|   \---Assets.xcassets
+|       \---AppIcon.appiconset
+|               Contents.json
+|               
++---Services
+|   +---API
+|   |       ClaudeService.swift
+|   |       
+|   +---Managers
+|   \---Storage
+|           Persistence.swift
+|           
++---Utilities
+|   +---Extensions
+|   +---Helpers
+|   |       AccessibilityHelpers.swift
+|   |       PerformanceMonitor.swift
+|   |       TemplateUtilities.swift
+|   |       
+|   \---Networking
+\---Views
+    +---Components
+    |       ErrorView.swift
+    |       
+    +---Dashboard
+    \---Onboarding
+            ClaudeOnboardingView.swift
+            
+Folder PATH listing for volume Windows
+Volume serial number is 4ED3-0463
+C:\USERS\AMIRP\ONEDRIVE\DESKTOP\NEUROSPLIT_RECONSTRUCTED (1)\NEUROSPLITTESTS
++---EngineTests
+|       EngineCalculationTests.swift
+|       
++---Mocks
+|       MockURLProtocol.swift
+|       
++---ModelTests
++---ServiceTests
+|       ClaudeServiceTests.swift
+|       ClaudeTemplateExtractorTests.swift
+|       ExportTests.swift
+|       OnboardingAPITests.swift
+|       SubscriptionManagerTests.swift
+|       TemplateSelectionTests.swift
+|       WhipCoinsManagerTests.swift
+|       
+\---ViewTests
+        UIFlowTests.swift
+        
+Folder PATH listing for volume Windows
+Volume serial number is 4ED3-0463
+C:\USERS\AMIRP\ONEDRIVE\DESKTOP\NEUROSPLIT_RECONSTRUCTED (1)\CONFIGURATION
+    AppInfo.template.plist
+    PrivacyInfo.xcprivacy
+    Secrets.example.xcconfig
+    
+No subfolders exist 
+
+Folder PATH listing for volume Windows
+Volume serial number is 4ED3-0463
+C:\USERS\AMIRP\ONEDRIVE\DESKTOP\NEUROSPLIT_RECONSTRUCTED (1)\DOCUMENTATION
+    APP_STORE_SUBMISSION_README.md
+    AUDIT_FIXES_COMPLETE.md
+    PROJECT_REORGANIZATION_PLAN.md
+    PROJECT_STRUCTURE.md
+    README.md
+    README_RECONSTRUCTION.md
+    
+No subfolders exist 
+
