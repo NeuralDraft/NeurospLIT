@@ -7,9 +7,15 @@ xcuserdata/
 *.xcuserstate
 *.moved-aside
 *.xcuserdatad
+
+# Root project workspace (GitHub integration)
+NeurospLIT.xcodeproj/project.xcworkspace/xcuserdata/
+NeurospLIT.xcodeproj/xcuserdata/
 *.xcodeproj/project.xcworkspace/xcuserdata/
 *.xcodeproj/xcuserdata/
 *.xcworkspace/xcuserdata/
+
+# Playground
 *.playground/**/timeline.xctimeline
 *.playground/**/playground.xcworkspace
 
@@ -44,6 +50,7 @@ fastlane/test_output
 
 # Secrets
 Secrets/
+Configuration/Secrets.xcconfig
 *.xcconfig.local
 *.env
 .env*
