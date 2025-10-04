@@ -1,0 +1,69 @@
+# Xcode
+DerivedData/
+build/
+*.xcscmblueprint
+*.xccheckout
+xcuserdata/
+*.xcuserstate
+*.moved-aside
+*.xcuserdatad
+*.xcodeproj/project.xcworkspace/xcuserdata/
+*.xcodeproj/xcuserdata/
+*.xcworkspace/xcuserdata/
+*.playground/**/timeline.xctimeline
+*.playground/**/playground.xcworkspace
+
+# SwiftPM
+/.build/
+/.build/*
+Package.resolved
+
+# CocoaPods
+Pods/
+*.xcworkspace
+
+# Carthage
+Carthage/Build/
+
+# Fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots
+fastlane/test_output
+
+# SwiftLint
+.swiftlint.yml.lock
+
+# Crashlytics
+*.dSYM.zip
+*.dSYM
+
+# Logs & OS
+.DS_Store
+*.log
+
+# Secrets
+Secrets/
+*.xcconfig.local
+*.env
+.env*
+apikeys.json
+api_keys.json
+*.pem
+*.p12
+
+# Generated
+*.generated.swift
+
+# Archives
+*.ipa
+*.xcarchive
+
+# User content
+*.psd
+*.sketch
+*.ai
+
+# Temporary
+tmp/
+temp/
